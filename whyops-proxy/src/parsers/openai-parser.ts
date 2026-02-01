@@ -121,12 +121,16 @@ export class OpenAIParser {
         // Extract direct function calls
         if (item.type === 'function_call') {
             if (!toolCalls) toolCalls = [];
+            
+            // Handle different variations of function call items
+            const args = typeof item.arguments === 'string' ? item.arguments : JSON.stringify(item.arguments || {});
+            
             toolCalls.push({
-                id: item.call_id || item.id,
+                id: item.call_id || item.id || `call_${Date.now()}`,
                 type: 'function',
                 function: {
                     name: item.name,
-                    arguments: item.arguments
+                    arguments: args
                 }
             });
         }

@@ -33,6 +33,8 @@ app.get('/:traceId/mermaid', async (c) => {
     let diagram = 'sequenceDiagram\n    participant User\n    participant Agent\n    participant Tool\n\n';
     
     let agentActive = false;
+    let toolActiveCount = 0; // Track nesting level of tool activations
+    let lastPlottedUserMessage = ''; // Track last plotted user message to avoid duplicates in tool loops
 
     for (const event of events) {
       const type = event.eventType;
@@ -62,8 +64,11 @@ app.get('/:traceId/mermaid', async (c) => {
           msg = content;
         }
         
-        if (msg) {
+        // Deduplicate: Only plot if message is different from the last one or empty (if we decide to show empties)
+        if (msg && msg !== lastPlottedUserMessage) {
           diagram += `    User->>Agent: ${escapeMermaid(msg)}\n`;
+          lastPlottedUserMessage = msg; // Update tracker
+          
           if (!agentActive) {
             diagram += `    activate Agent\n`;
             agentActive = true;
@@ -90,10 +95,22 @@ app.get('/:traceId/mermaid', async (c) => {
             } catch {}
             
             diagram += `    Agent->>Tool: Call ${funcName}(${escapeMermaid(args)})\n`;
+            
+            // Only activate if we haven't already activated for this tool call batch?
+            // Actually, multiple calls can happen in parallel.
+            // But Mermaid `activate` stacks.
             diagram += `    activate Tool\n`;
+            toolActiveCount++;
           }
         } else if (content.content) {
           // Text Response
+          // If we had active tools, maybe we should close them? 
+          // (Usually tools return results before final answer, but if error happens or partial...)
+          while (toolActiveCount > 0) {
+             diagram += `    deactivate Tool\n`;
+             toolActiveCount--;
+          }
+
           diagram += `    Agent->>User: ${escapeMermaid(content.content)}\n`;
           if (agentActive) {
             diagram += `    deactivate Agent\n`;
@@ -107,8 +124,14 @@ app.get('/:traceId/mermaid', async (c) => {
         const toolName = content.toolName || 'Tool';
         const output = typeof content.output === 'string' ? content.output : JSON.stringify(content.output);
         diagram += `    Tool-->>Agent: Result from ${toolName}: ${escapeMermaid(output)}\n`;
-        diagram += `    deactivate Tool\n`;
         
+        // Only deactivate if we think it's active
+        if (toolActiveCount > 0) {
+            diagram += `    deactivate Tool\n`;
+            toolActiveCount--;
+        }
+        
+        // Ensure Agent is active after receiving tool result
         if (!agentActive) {
           diagram += `    activate Agent\n`;
           agentActive = true;
