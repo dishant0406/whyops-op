@@ -1,0 +1,254 @@
+import { createServiceLogger } from '@whyops/shared/logger';
+import { LLMEvent } from '@whyops/shared/models';
+import { nanoid } from 'nanoid';
+import { Op } from 'sequelize';
+import { traceQueue } from '../utils/queue';
+import { SamplingService } from './sampling.service';
+import { TraceService } from './trace.service';
+
+const logger = createServiceLogger('analyse:event-service');
+
+export interface EventData {
+  eventType: 'user_message' | 'llm_response' | 'tool_call' | 'error';
+  traceId: string;
+  spanId?: string;
+  stepId?: number;
+  parentStepId?: number;
+  userId: string;
+  providerId: string;
+  entityName?: string;
+  timestamp?: string;
+  content?: any;
+  metadata?: Record<string, any>;
+  idempotencyKey?: string;
+}
+
+export interface EventProcessResult {
+  id: string | null;
+  status: 'saved' | 'skipped' | 'sampled_out';
+  stepId?: number;
+  parentStepId?: number;
+  spanId?: string;
+  message?: string;
+}
+
+export interface EventListFilters {
+  traceId?: string;
+  userId?: string;
+  providerId?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export class EventService {
+  /**
+   * Process and save an event with idempotency, sampling, and step management
+   */
+  static async processEvent(data: EventData): Promise<EventProcessResult> {
+    // Wrap in per-trace queue for sequential processing
+    return traceQueue.getQueue(data.traceId).add(async () => {
+      // 1. Ensure Trace Exists
+      await TraceService.ensureTraceExists({
+        traceId: data.traceId,
+        userId: data.userId,
+        providerId: data.providerId,
+        entityName: data.entityName,
+        content: data.content,
+        metadata: data.metadata,
+        timestamp: data.timestamp,
+      });
+
+      // 2. Sampling Check
+      const eventHash = SamplingService.generateContentHash({
+        traceId: data.traceId,
+        eventType: data.eventType,
+        userId: data.userId,
+        parentStepId: data.parentStepId,
+        content: data.content,
+      });
+
+      const samplingResult = await SamplingService.shouldSampleEvent(
+        data.userId,
+        data.entityName,
+        eventHash
+      );
+
+      if (!samplingResult.shouldSample) {
+        logger.debug(
+          {
+            traceId: data.traceId,
+            samplingRate: samplingResult.samplingRate,
+            hashValue: samplingResult.hashValue,
+          },
+          'Event rejected by sampling'
+        );
+
+        return {
+          id: null,
+          status: 'sampled_out',
+          message: samplingResult.reason,
+        };
+      }
+
+      // 3. Idempotency Check
+      const idempotencyKey = data.idempotencyKey || `hash_${eventHash}`;
+
+      const existingEvent = await LLMEvent.findOne({
+        where: {
+          traceId: data.traceId,
+          metadata: {
+            [Op.contains]: { idempotencyKey },
+          } as any,
+        },
+      });
+
+      if (existingEvent) {
+        logger.info(
+          {
+            traceId: data.traceId,
+            idempotencyKey,
+            existingEventId: existingEvent.id,
+          },
+          'Idempotent duplicate detected, skipping'
+        );
+
+        return {
+          id: existingEvent.id,
+          status: 'skipped',
+          stepId: existingEvent.stepId,
+          parentStepId: existingEvent.parentStepId,
+          spanId: existingEvent.spanId,
+          message: 'Event already exists (idempotency check)',
+        };
+      }
+
+      // 4. Step Resolution
+      const { stepId, parentStepId, spanId } = await this.resolveStepInfo(
+        data.traceId,
+        data.stepId,
+        data.parentStepId,
+        data.spanId
+      );
+
+      // 5. Create Event
+      const finalMetadata = {
+        ...(data.metadata || {}),
+        idempotencyKey,
+      };
+
+      const event = await LLMEvent.create({
+        eventType: data.eventType,
+        traceId: data.traceId,
+        stepId,
+        parentStepId,
+        spanId,
+        timestamp: data.timestamp ? new Date(data.timestamp) : new Date(),
+        content: data.content,
+        metadata: finalMetadata,
+        userId: data.userId,
+        providerId: data.providerId,
+      });
+
+      logger.info(
+        {
+          eventId: event.id,
+          traceId: data.traceId,
+          stepId,
+          eventType: data.eventType,
+          spanId,
+        },
+        'Event saved'
+      );
+
+      return {
+        id: event.id,
+        status: 'saved',
+        stepId,
+        parentStepId,
+        spanId,
+      };
+    });
+  }
+
+  /**
+   * Process multiple events in batch
+   */
+  static async processBatchEvents(events: EventData[]): Promise<EventProcessResult[]> {
+    return Promise.all(events.map((event) => this.processEvent(event)));
+  }
+
+  /**
+   * List events with filters and pagination
+   */
+  static async listEvents(filters: EventListFilters) {
+    const { traceId, userId, providerId, limit = 100, offset = 0 } = filters;
+
+    const where: any = {};
+    if (traceId) where.traceId = traceId;
+    if (userId) where.userId = userId;
+    if (providerId) where.providerId = providerId;
+
+    const events = await LLMEvent.findAll({
+      where,
+      limit,
+      offset,
+      order: [['timestamp', 'DESC']],
+    });
+
+    const total = await LLMEvent.count({ where });
+
+    return {
+      events,
+      pagination: {
+        total,
+        limit,
+        offset,
+        hasMore: offset + limit < total,
+      },
+    };
+  }
+
+  /**
+   * Get event by ID
+   */
+  static async getEventById(id: string): Promise<LLMEvent | null> {
+    return LLMEvent.findByPk(id);
+  }
+
+  /**
+   * Resolve step information for an event
+   */
+  private static async resolveStepInfo(
+    traceId: string,
+    stepId?: number,
+    parentStepId?: number,
+    spanId?: string
+  ): Promise<{ stepId: number; parentStepId?: number; spanId: string }> {
+    let resolvedStepId = stepId;
+    let resolvedParentStepId = parentStepId;
+    const resolvedSpanId = spanId || `span_${nanoid()}`;
+
+    if (!resolvedStepId) {
+      const lastEvent = await LLMEvent.findOne({
+        where: { traceId },
+        order: [['stepId', 'DESC']],
+      });
+
+      if (lastEvent) {
+        resolvedStepId = lastEvent.stepId + 1;
+        resolvedParentStepId = lastEvent.stepId;
+      } else {
+        resolvedStepId = 1;
+        resolvedParentStepId = undefined;
+      }
+    } else if (!resolvedParentStepId && resolvedStepId > 1) {
+      resolvedParentStepId = resolvedStepId - 1;
+    }
+
+    return {
+      stepId: resolvedStepId,
+      parentStepId: resolvedParentStepId,
+      spanId: resolvedSpanId,
+    };
+  }
+}

@@ -7,6 +7,7 @@ export interface EntityAttributes {
   name: string; // Agent Name
   hash: string; // Hash of metadata (tools, system prompt, etc.)
   metadata: Record<string, any>; // system prompt, tools, etc.
+  samplingRate: number; // Sampling rate (0-1), controls trace storage probability
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -17,6 +18,7 @@ export class Entity extends Model<EntityAttributes> implements EntityAttributes 
   declare name: string;
   declare hash: string;
   declare metadata: Record<string, any>;
+  declare samplingRate: number;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -45,6 +47,16 @@ Entity.init(
       type: DataTypes.JSONB,
       allowNull: false,
       defaultValue: {},
+    },
+    samplingRate: {
+      type: DataTypes.DECIMAL(3, 2),
+      allowNull: false,
+      defaultValue: 1.0,
+      field: 'sampling_rate',
+      validate: {
+        min: 0,
+        max: 1,
+      },
     },
     createdAt: {
       type: DataTypes.DATE,
