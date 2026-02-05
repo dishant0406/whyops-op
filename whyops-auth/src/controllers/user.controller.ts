@@ -1,6 +1,6 @@
 import { createServiceLogger } from '@whyops/shared/logger';
 import { Context } from 'hono';
-import { UpdateUserData, UserService } from '../services';
+import { auth } from '../lib/auth';
 import { ResponseUtil } from '../utils';
 
 const logger = createServiceLogger('auth:user-controller');
@@ -11,14 +11,19 @@ export class UserController {
    */
   static async getCurrentUser(c: Context) {
     try {
-      const jwtUser = c.get('user');
-      const user = await UserService.getUserById(jwtUser.userId);
+      const user = c.get('user');
 
       if (!user) {
-        return ResponseUtil.notFound(c, 'User not found');
+        return ResponseUtil.unauthorized(c, 'Not authenticated');
       }
 
-      return ResponseUtil.success(c, user);
+      return ResponseUtil.success(c, {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        metadata: user.metadata,
+        isActive: user.isActive,
+      });
     } catch (error: any) {
       logger.error({ error }, 'Failed to fetch user');
       return ResponseUtil.internalError(c, 'Failed to fetch user');
@@ -30,25 +35,32 @@ export class UserController {
    */
   static async updateCurrentUser(c: Context) {
     try {
-      const jwtUser = c.get('user');
-      const data = await c.req.json() as UpdateUserData;
+      const user = c.get('user');
       
-      const user = await UserService.updateUser(jwtUser.userId, data);
+      if (!user) {
+        return ResponseUtil.unauthorized(c, 'Not authenticated');
+      }
+
+      const data = await c.req.json();
+      
+      // Use Better Auth's update user API
+      await auth.api.updateUser({
+        headers: c.req.raw.headers,
+        body: {
+          name: data.name,
+          image: data.image,
+        },
+      });
+
+      // For custom fields, we'd need to update them separately
+      // This is a simplified version - you might want to extend Better Auth
+      // or use hooks to handle custom fields
 
       return ResponseUtil.success(c, {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        metadata: user.metadata,
-        updatedAt: user.updatedAt,
+        message: 'User updated successfully',
       });
     } catch (error: any) {
       logger.error({ error }, 'Failed to update user');
-      
-      if (error.message === 'User not found') {
-        return ResponseUtil.notFound(c, error.message);
-      }
-      
       return ResponseUtil.internalError(c, 'Failed to update user');
     }
   }

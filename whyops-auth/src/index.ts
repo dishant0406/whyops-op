@@ -4,10 +4,11 @@ import { createServiceLogger } from '@whyops/shared/logger';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger as honoLogger } from 'hono/logger';
-import { jwtAuthMiddleware } from './middleware/jwtAuth';
+import { auth } from './lib/auth';
+import { requireAuth, sessionMiddleware } from './middleware/session';
 import apiKeysRouter from './routes/apiKeys';
-import authRouter from './routes/auth';
 import healthRouter from './routes/health';
+import migrateRouter from './routes/migrate';
 import projectsRouter from './routes/projects';
 import providersRouter from './routes/providers';
 import usersRouter from './routes/users';
@@ -17,17 +18,38 @@ const app = new Hono();
 
 // Initialize database
 await initDatabase();
+logger.info('Database initialized');
 
 // Global middleware
 app.use('*', honoLogger());
-app.use('*', cors());
+app.use(
+  '*',
+  cors({
+    origin: [env.PROXY_URL, env.ANALYSE_URL, env.AUTH_URL, 'http://localhost:3000'],
+    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+  })
+);
 
-// Public routes
+// Public routes (no session required)
 app.route('/health', healthRouter);
-app.route('/api/auth', authRouter);
 
-// Protected routes (require JWT)
-app.use('/api/*', jwtAuthMiddleware);
+// Better Auth migration endpoint (only in development, no session required)
+if (env.NODE_ENV === 'development') {
+  app.route('/migrate', migrateRouter);
+}
+
+// Better Auth handler - handles /api/auth/* endpoints
+app.on(['POST', 'GET'], '/api/auth/**', (c) => {
+  return auth.handler(c.req.raw);
+});
+
+// Load session for protected routes
+app.use('/api/*', sessionMiddleware);
+
+// Protected routes (require authentication)
+app.use('/api/*', requireAuth);
 app.route('/api/projects', projectsRouter);
 app.route('/api/providers', providersRouter);
 app.route('/api/api-keys', apiKeysRouter);

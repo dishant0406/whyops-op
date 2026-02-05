@@ -12,7 +12,7 @@ export class ProviderController {
   static async listProviders(c: Context) {
     try {
       const user = c.get('user');
-      const providers = await ProviderService.listProviders(user.userId);
+      const providers = await ProviderService.listProviders(user.id);
       return ResponseUtil.success(c, { providers });
     } catch (error: any) {
       logger.error({ error }, 'Failed to fetch providers');
@@ -29,7 +29,7 @@ export class ProviderController {
       const data = await c.req.json();
       
       const provider = await ProviderService.createProvider({
-        userId: user.userId,
+        userId: user.id,
         ...data,
       } as CreateProviderData);
 
@@ -55,7 +55,7 @@ export class ProviderController {
       const user = c.get('user');
       const id = c.req.param('id');
       
-      const provider = await ProviderService.getProviderById(id, user.userId);
+      const provider = await ProviderService.getProviderById(id, user.id);
 
       if (!provider) {
         return ResponseUtil.notFound(c, 'Provider not found');
@@ -77,7 +77,7 @@ export class ProviderController {
       const id = c.req.param('id');
       const data = await c.req.json() as UpdateProviderData;
       
-      const provider = await ProviderService.updateProvider(id, user.userId, data);
+      const provider = await ProviderService.updateProvider(id, user.id, data);
 
       return ResponseUtil.success(c, {
         id: provider.id,
@@ -106,7 +106,7 @@ export class ProviderController {
       const user = c.get('user');
       const id = c.req.param('id');
       
-      await ProviderService.deleteProvider(id, user.userId);
+      await ProviderService.deleteProvider(id, user.id);
 
       return ResponseUtil.success(c, { message: 'Provider deleted' });
     } catch (error: any) {
@@ -128,7 +128,7 @@ export class ProviderController {
       const user = c.get('user');
       const id = c.req.param('id');
       
-      const isActive = await ProviderService.toggleProvider(id, user.userId);
+      const isActive = await ProviderService.toggleProvider(id, user.id);
 
       return ResponseUtil.success(c, { isActive });
     } catch (error: any) {

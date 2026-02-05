@@ -23,7 +23,7 @@ Project.init(
       primaryKey: true,
     },
     userId: {
-      type: DataTypes.UUID,
+      type: DataTypes.STRING,
       allowNull: false,
       references: {
         model: 'users',

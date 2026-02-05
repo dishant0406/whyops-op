@@ -12,7 +12,7 @@ export class ProjectController {
   static async listProjects(c: Context) {
     try {
       const user = c.get('user');
-      const projects = await ProjectService.listProjects(user.userId);
+      const projects = await ProjectService.listProjects(user.id);
       return ResponseUtil.success(c, { projects });
     } catch (error: any) {
       logger.error({ error }, 'Failed to fetch projects');
@@ -28,7 +28,7 @@ export class ProjectController {
       const user = c.get('user');
       const projectId = c.req.param('id');
       
-      const project = await ProjectService.getProjectById(projectId, user.userId);
+      const project = await ProjectService.getProjectById(projectId, user.id);
 
       if (!project) {
         return ResponseUtil.notFound(c, 'Project not found');
@@ -50,7 +50,7 @@ export class ProjectController {
       const data = await c.req.json();
       
       const result = await ProjectService.createProject({
-        userId: user.userId,
+        userId: user.id,
         ...data,
       } as CreateProjectData);
 
@@ -87,7 +87,7 @@ export class ProjectController {
       const projectId = c.req.param('id');
       const data = await c.req.json() as UpdateProjectData;
       
-      const project = await ProjectService.updateProject(projectId, user.userId, data);
+      const project = await ProjectService.updateProject(projectId, user.id, data);
 
       return ResponseUtil.success(c, { project });
     } catch (error: any) {
@@ -109,7 +109,7 @@ export class ProjectController {
       const user = c.get('user');
       const projectId = c.req.param('id');
       
-      await ProjectService.deactivateProject(projectId, user.userId);
+      await ProjectService.deactivateProject(projectId, user.id);
 
       return ResponseUtil.success(c, { message: 'Project deactivated successfully' });
     } catch (error: any) {
@@ -131,7 +131,7 @@ export class ProjectController {
       const user = c.get('user');
       const projectId = c.req.param('projectId');
       
-      const environments = await ProjectService.getEnvironments(projectId, user.userId);
+      const environments = await ProjectService.getEnvironments(projectId, user.id);
 
       return ResponseUtil.success(c, { environments });
     } catch (error: any) {

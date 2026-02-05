@@ -35,7 +35,7 @@ Trace.init(
       allowNull: false,
     },
     userId: {
-      type: DataTypes.UUID,
+      type: DataTypes.STRING,
       allowNull: false,
       field: 'user_id',
     },

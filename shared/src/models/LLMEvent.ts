@@ -72,7 +72,7 @@ LLMEvent.init(
       field: 'event_type',
     },
     userId: {
-      type: DataTypes.UUID,
+      type: DataTypes.STRING,
       allowNull: false,
       references: {
         model: 'users',

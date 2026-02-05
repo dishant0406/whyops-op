@@ -15,7 +15,7 @@ export class ApiKeyController {
       const projectId = c.req.query('projectId');
       const environmentId = c.req.query('environmentId');
       
-      const apiKeys = await ApiKeyService.listApiKeys(user.userId, {
+      const apiKeys = await ApiKeyService.listApiKeys(user.id, {
         projectId,
         environmentId,
       });
@@ -36,7 +36,7 @@ export class ApiKeyController {
       const data = await c.req.json();
       
       const apiKeyRecord = await ApiKeyService.createApiKey({
-        userId: user.userId,
+        userId: user.id,
         ...data,
         expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined,
       } as CreateApiKeyData);
@@ -76,7 +76,7 @@ export class ApiKeyController {
       const user = c.get('user');
       const id = c.req.param('id');
       
-      const apiKey = await ApiKeyService.getApiKeyById(id, user.userId);
+      const apiKey = await ApiKeyService.getApiKeyById(id, user.id);
 
       if (!apiKey) {
         return ResponseUtil.notFound(c, 'API key not found');
@@ -103,7 +103,7 @@ export class ApiKeyController {
         data.expiresAt = new Date(data.expiresAt as any);
       }
       
-      const apiKey = await ApiKeyService.updateApiKey(id, user.userId, data);
+      const apiKey = await ApiKeyService.updateApiKey(id, user.id, data);
 
       return ResponseUtil.success(c, {
         id: apiKey.id,
@@ -131,7 +131,7 @@ export class ApiKeyController {
       const user = c.get('user');
       const id = c.req.param('id');
       
-      await ApiKeyService.deleteApiKey(id, user.userId);
+      await ApiKeyService.deleteApiKey(id, user.id);
 
       return ResponseUtil.success(c, { message: 'API key revoked' });
     } catch (error: any) {
@@ -153,7 +153,7 @@ export class ApiKeyController {
       const user = c.get('user');
       const id = c.req.param('id');
       
-      const isActive = await ApiKeyService.toggleApiKey(id, user.userId);
+      const isActive = await ApiKeyService.toggleApiKey(id, user.id);
 
       return ResponseUtil.success(c, { isActive });
     } catch (error: any) {

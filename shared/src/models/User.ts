@@ -19,8 +19,7 @@ export class User extends Model<UserType, UserCreationAttributes> implements Use
 User.init(
   {
     id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
+      type: DataTypes.STRING,
       primaryKey: true,
     },
     email: {
@@ -40,7 +39,7 @@ User.init(
       allowNull: true,
     },
     organizationId: {
-      type: DataTypes.UUID,
+      type: DataTypes.STRING,
       allowNull: true,
     },
     isActive: {

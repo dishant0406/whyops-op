@@ -47,7 +47,7 @@ RequestLog.init(
       allowNull: false,
     },
     userId: {
-      type: DataTypes.UUID,
+      type: DataTypes.STRING,
       allowNull: true,
     },
     apiKeyId: {
