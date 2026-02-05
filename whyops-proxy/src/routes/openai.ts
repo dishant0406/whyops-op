@@ -1,10 +1,10 @@
 import env from '@whyops/shared/env';
 import { createServiceLogger } from '@whyops/shared/logger';
-import { generateSpanId, generateThreadId, decodeSignature, encodeSignature, stripSignature } from '@whyops/shared/utils';
+import { decodeSignature, encodeSignature, generateSpanId, generateThreadId, stripSignature } from '@whyops/shared/utils';
 import { Hono } from 'hono';
 import { stream } from 'hono/streaming';
-import { sendToAnalyse } from '../services/analyse';
 import { OpenAIParser } from '../parsers/openai-parser';
+import { sendToAnalyse } from '../services/analyse';
 
 const logger = createServiceLogger('proxy:openai');
 const app = new Hono();
