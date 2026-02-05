@@ -15,21 +15,23 @@ export class EntityService {
   }
 
   /**
-   * Resolves entity ID by user ID and entity name
+   * Resolves entity ID by user ID, project ID, environment ID, and entity name
    * Creates the entity if it doesn't exist
    * Returns the latest version of the entity (or creates a new version if metadata changed)
    */
   static async resolveEntityId(
     userId: string,
+    projectId: string,
+    environmentId: string,
     entityName?: string,
     metadata?: Record<string, any>
   ): Promise<string | undefined> {
     if (!entityName) return undefined;
 
     try {
-      // Find existing entity by userId and name (get latest version)
+      // Find existing entity by environmentId and name (get latest version)
       const existingEntity = await Entity.findOne({
-        where: { userId, name: entityName },
+        where: { environmentId, name: entityName },
         order: [['createdAt', 'DESC']],
       });
 
@@ -44,7 +46,14 @@ export class EntityService {
         
         // Metadata changed - create new version
         logger.info(
-          { userId, entityName, oldHash: existingEntity.hash, newHash: currentHash },
+          { 
+            userId, 
+            projectId, 
+            environmentId, 
+            entityName, 
+            oldHash: existingEntity.hash, 
+            newHash: currentHash 
+          },
           'Entity metadata changed, creating new version'
         );
       }
@@ -53,6 +62,8 @@ export class EntityService {
       const hash = this.createMetadataHash(metadata || {});
       const newEntity = await Entity.create({
         userId,
+        projectId,
+        environmentId,
         name: entityName,
         hash,
         metadata: metadata || {},
@@ -60,51 +71,60 @@ export class EntityService {
       });
 
       logger.info(
-        { entityId: newEntity.id, userId, entityName, isFirstVersion: !existingEntity },
+        { 
+          entityId: newEntity.id, 
+          userId, 
+          projectId, 
+          environmentId, 
+          entityName, 
+          isFirstVersion: !existingEntity 
+        },
         'Entity created'
       );
 
       return newEntity.id;
     } catch (error) {
-      logger.error({ error, userId, entityName }, 'Failed to resolve entity ID');
+      logger.error({ error, userId, projectId, environmentId, entityName }, 'Failed to resolve entity ID');
       return undefined;
     }
   }
 
   /**
-   * Gets entity by user ID and name (latest version)
+   * Gets entity by environment ID and name (latest version)
    */
   static async getEntity(
-    userId: string,
+    environmentId: string,
     entityName: string
   ): Promise<Entity | null> {
     try {
       return await Entity.findOne({
-        where: { userId, name: entityName },
+        where: { environmentId, name: entityName },
         order: [['createdAt', 'DESC']],
       });
     } catch (error) {
-      logger.error({ error, userId, entityName }, 'Failed to get entity');
+      logger.error({ error, environmentId, entityName }, 'Failed to get entity');
       return null;
     }
   }
 
   /**
-   * Gets or creates an entity by user ID and name
+   * Gets or creates an entity by user ID, project ID, environment ID, and name
    * This ensures the entity exists, creating it if necessary
    */
   static async getOrCreateEntity(
     userId: string,
+    projectId: string,
+    environmentId: string,
     entityName: string,
     metadata?: Record<string, any>
   ): Promise<Entity | null> {
     try {
-      const entityId = await this.resolveEntityId(userId, entityName, metadata);
+      const entityId = await this.resolveEntityId(userId, projectId, environmentId, entityName, metadata);
       if (!entityId) return null;
 
       return await Entity.findByPk(entityId);
     } catch (error) {
-      logger.error({ error, userId, entityName }, 'Failed to get or create entity');
+      logger.error({ error, userId, projectId, environmentId, entityName }, 'Failed to get or create entity');
       return null;
     }
   }

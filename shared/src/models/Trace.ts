@@ -4,7 +4,7 @@ import sequelize from '../database';
 export interface TraceAttributes {
   id: string; // traceId
   userId: string;
-  providerId: string;
+  providerId?: string;
   entityId?: string;
   model?: string;
   systemMessage?: string;
@@ -17,7 +17,7 @@ export interface TraceAttributes {
 export class Trace extends Model<TraceAttributes> implements TraceAttributes {
   declare id: string;
   declare userId: string;
-  declare providerId: string;
+  declare providerId?: string;
   declare entityId?: string;
   declare model?: string;
   declare systemMessage?: string;
@@ -41,7 +41,7 @@ Trace.init(
     },
     providerId: {
       type: DataTypes.UUID,
-      allowNull: false,
+      allowNull: true,
       field: 'provider_id',
     },
     entityId: {

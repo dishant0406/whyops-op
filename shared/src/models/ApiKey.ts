@@ -7,10 +7,14 @@ interface ApiKeyCreationAttributes extends Optional<ApiKeyType, 'id' | 'createdA
 export class ApiKey extends Model<ApiKeyType, ApiKeyCreationAttributes> implements ApiKeyType {
   declare id: string;
   declare userId: string;
-  declare providerId: string;
+  declare projectId: string;
+  declare environmentId: string;
+  declare providerId?: string;
   declare name: string;
   declare keyHash: string;
   declare keyPrefix: string;
+  declare isMaster: boolean;
+  declare entityId?: string;
   declare lastUsedAt?: Date;
   declare expiresAt?: Date;
   declare isActive: boolean;
@@ -36,11 +40,38 @@ ApiKey.init(
       },
       onDelete: 'CASCADE',
     },
-    providerId: {
+    projectId: {
       type: DataTypes.UUID,
       allowNull: false,
       references: {
+        model: 'projects',
+        key: 'id',
+      },
+      onDelete: 'CASCADE',
+    },
+    environmentId: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'environments',
+        key: 'id',
+      },
+      onDelete: 'CASCADE',
+    },
+    providerId: {
+      type: DataTypes.UUID,
+      allowNull: true, // Optional for master keys
+      references: {
         model: 'providers',
+        key: 'id',
+      },
+      onDelete: 'CASCADE',
+    },
+    entityId: {
+      type: DataTypes.UUID,
+      allowNull: true, // Optional: specific entity key
+      references: {
+        model: 'entities',
         key: 'id',
       },
       onDelete: 'CASCADE',
@@ -55,8 +86,13 @@ ApiKey.init(
       unique: true,
     },
     keyPrefix: {
-      type: DataTypes.STRING(12),
+      type: DataTypes.STRING(20),
       allowNull: false,
+    },
+    isMaster: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      comment: 'True if this is an environment master key',
     },
     lastUsedAt: {
       type: DataTypes.DATE,
@@ -100,10 +136,19 @@ ApiKey.init(
         fields: ['user_id'],
       },
       {
+        fields: ['project_id'],
+      },
+      {
+        fields: ['environment_id'],
+      },
+      {
         fields: ['provider_id'],
       },
       {
         fields: ['is_active'],
+      },
+      {
+        fields: ['is_master'],
       },
     ],
   }

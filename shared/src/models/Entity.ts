@@ -4,6 +4,8 @@ import sequelize from '../database';
 export interface EntityAttributes {
   id?: string; // UUID - optional for creation, auto-generated
   userId: string;
+  projectId: string;
+  environmentId: string;
   name: string; // Agent Name
   hash: string; // Hash of metadata (tools, system prompt, etc.)
   metadata: Record<string, any>; // system prompt, tools, etc.
@@ -15,6 +17,8 @@ export interface EntityAttributes {
 export class Entity extends Model<EntityAttributes> implements EntityAttributes {
   declare id: string;
   declare userId: string;
+  declare projectId: string;
+  declare environmentId: string;
   declare name: string;
   declare hash: string;
   declare metadata: Record<string, any>;
@@ -34,6 +38,31 @@ Entity.init(
       type: DataTypes.UUID,
       allowNull: false,
       field: 'user_id',
+      references: {
+        model: 'users',
+        key: 'id',
+      },
+      onDelete: 'CASCADE',
+    },
+    projectId: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      field: 'project_id',
+      references: {
+        model: 'projects',
+        key: 'id',
+      },
+      onDelete: 'CASCADE',
+    },
+    environmentId: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      field: 'environment_id',
+      references: {
+        model: 'environments',
+        key: 'id',
+      },
+      onDelete: 'CASCADE',
     },
     name: {
       type: DataTypes.STRING,
@@ -77,10 +106,13 @@ Entity.init(
     indexes: [
       {
         unique: true,
-        fields: ['user_id', 'name', 'hash'], // Composite unique constraint might be needed or just handled in logic
+        fields: ['environment_id', 'name', 'hash'],
       },
       {
-         fields: ['user_id', 'name']
+         fields: ['user_id', 'project_id']
+      },
+      {
+         fields: ['environment_id']
       }
     ]
   }

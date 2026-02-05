@@ -15,7 +15,9 @@ export interface EventData {
   stepId?: number;
   parentStepId?: number;
   userId: string;
-  providerId: string;
+  projectId: string;
+  environmentId: string;
+  providerId?: string;
   entityName?: string;
   timestamp?: string;
   content?: any;
@@ -51,6 +53,8 @@ export class EventService {
       await TraceService.ensureTraceExists({
         traceId: data.traceId,
         userId: data.userId,
+        projectId: data.projectId,
+        environmentId: data.environmentId,
         providerId: data.providerId,
         entityName: data.entityName,
         content: data.content,
@@ -253,7 +257,7 @@ export class EventService {
   private static async createToolCallRequestEvent(data: {
     traceId: string;
     userId: string;
-    providerId: string;
+    providerId?: string;
     parentStepId: number;
     timestamp?: string;
     content: any;

@@ -17,7 +17,6 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "types": ["bun-types"],
     "paths": {
       "@shared/*": ["./shared/src/*"]
     }

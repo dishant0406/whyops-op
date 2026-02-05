@@ -22,10 +22,14 @@ export interface ProviderConfig {
 export interface ApiKey {
   id: string;
   userId: string;
-  providerId: string;
+  projectId: string;
+  environmentId: string;
+  providerId?: string; // Optional now, master keys don't need provider
   name: string;
   keyHash: string; // SHA-256 hash of the actual key
-  keyPrefix: string; // First 8 chars for identification
+  keyPrefix: string; // First 12 chars for identification (YOPS-xxxxx)
+  isMaster: boolean; // True if this is an environment master key
+  entityId?: string; // Optional: specific entity this key is for
   lastUsedAt?: Date;
   expiresAt?: Date;
   isActive: boolean;
@@ -44,6 +48,32 @@ export interface User {
   organizationId?: string;
   isActive: boolean;
   metadata?: Record<string, any>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Project types
+export interface Project {
+  id: string;
+  userId: string;
+  name: string;
+  description?: string;
+  metadata?: Record<string, any>;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Environment types
+export type EnvironmentType = 'PRODUCTION' | 'STAGING' | 'DEVELOPMENT';
+
+export interface Environment {
+  id: string;
+  projectId: string;
+  name: EnvironmentType;
+  description?: string;
+  metadata?: Record<string, any>;
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

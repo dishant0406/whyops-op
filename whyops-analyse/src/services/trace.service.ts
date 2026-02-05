@@ -8,7 +8,9 @@ const logger = createServiceLogger('analyse:trace-service');
 export interface TraceCreationData {
   traceId: string;
   userId: string;
-  providerId: string;
+  projectId: string;
+  environmentId: string;
+  providerId?: string;
   entityName?: string;
   content?: any;
   metadata?: Record<string, any>;
@@ -30,26 +32,30 @@ export class TraceService {
       }
 
       // 2. Resolve Entity ID (if name provided)
-      // This will create the entity if it doesn't exist
+      // This will create the entity if it doesn't exist within the specified environment
       let resolvedEntityId: string | undefined;
       if (data.entityName) {
         resolvedEntityId = await EntityService.resolveEntityId(
           data.userId,
+          data.projectId,
+          data.environmentId,
           data.entityName,
           data.metadata // Pass metadata to create/version the entity
         );
       }
 
-      // 3. Resolve Provider Type to select parser
+      // 3. Resolve Provider Type to select parser (if providerId is provided)
       let providerType = 'openai'; // default
-      try {
-        const provider = await Provider.findByPk(data.providerId);
-        if (provider) providerType = provider.type;
-      } catch (e) {
-        logger.warn(
-          { providerId: data.providerId },
-          'Failed to fetch provider type for trace init, using default'
-        );
+      if (data.providerId) {
+        try {
+          const provider = await Provider.findByPk(data.providerId);
+          if (provider) providerType = provider.type;
+        } catch (e) {
+          logger.warn(
+            { providerId: data.providerId },
+            'Failed to fetch provider type for trace init, using default'
+          );
+        }
       }
 
       // 4. Extract Metadata using Strategy Pattern

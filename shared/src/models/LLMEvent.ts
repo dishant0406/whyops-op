@@ -10,7 +10,7 @@ export interface TraceEvent {
   parentStepId?: number;
   eventType: 'user_message' | 'llm_response' | 'tool_call' | 'tool_call_request' | 'tool_call_response' | 'error';
   userId: string;
-  providerId: string;
+  providerId?: string;
   timestamp: Date;
   
   // Generic Payload
@@ -32,7 +32,7 @@ export class LLMEvent extends Model<TraceEvent, EventCreationAttributes> impleme
   declare parentStepId?: number;
   declare eventType: 'user_message' | 'llm_response' | 'tool_call' | 'tool_call_request' | 'tool_call_response' | 'error';
   declare userId: string;
-  declare providerId: string;
+  declare providerId?: string;
   declare timestamp: Date;
   declare content: any;
   declare metadata?: Record<string, any>;
@@ -82,7 +82,7 @@ LLMEvent.init(
     },
     providerId: {
       type: DataTypes.UUID,
-      allowNull: false,
+      allowNull: true,
       references: {
         model: 'providers',
         key: 'id',

@@ -1,15 +1,16 @@
-import { Hono } from 'hono';
-import { logger as honoLogger } from 'hono/logger';
-import { cors } from 'hono/cors';
-import { createServiceLogger } from '@whyops/shared/logger';
 import { initDatabase } from '@whyops/shared/database';
 import env from '@whyops/shared/env';
-import authRouter from './routes/auth';
-import providersRouter from './routes/providers';
-import apiKeysRouter from './routes/apiKeys';
-import usersRouter from './routes/users';
-import healthRouter from './routes/health';
+import { createServiceLogger } from '@whyops/shared/logger';
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
+import { logger as honoLogger } from 'hono/logger';
 import { jwtAuthMiddleware } from './middleware/jwtAuth';
+import apiKeysRouter from './routes/apiKeys';
+import authRouter from './routes/auth';
+import healthRouter from './routes/health';
+import projectsRouter from './routes/projects';
+import providersRouter from './routes/providers';
+import usersRouter from './routes/users';
 
 const logger = createServiceLogger('auth');
 const app = new Hono();
@@ -27,6 +28,7 @@ app.route('/api/auth', authRouter);
 
 // Protected routes (require JWT)
 app.use('/api/*', jwtAuthMiddleware);
+app.route('/api/projects', projectsRouter);
 app.route('/api/providers', providersRouter);
 app.route('/api/api-keys', apiKeysRouter);
 app.route('/api/users', usersRouter);

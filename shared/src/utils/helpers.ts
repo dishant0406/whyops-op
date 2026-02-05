@@ -3,10 +3,13 @@ import { nanoid } from 'nanoid';
 
 /**
  * Generate a secure API key with prefix
+ * Supports both underscore (whyops_xxx) and hyphen (YOPS-xxx) separators
  */
 export function generateApiKey(prefix: string = 'whyops'): string {
   const randomPart = nanoid(32);
-  return `${prefix}_${randomPart}`;
+  // Use hyphen if prefix ends with hyphen, otherwise use underscore
+  const separator = prefix.endsWith('-') ? '' : '_';
+  return `${prefix}${separator}${randomPart}`;
 }
 
 /**
@@ -34,7 +37,9 @@ export function generateSpanId(): string {
  * Validate API key format
  */
 export function validateApiKeyFormat(apiKey: string, prefix: string = 'whyops'): boolean {
-  const regex = new RegExp(`^${prefix}_[A-Za-z0-9_-]{32}$`);
+  // Support both underscore and hyphen separators
+  const escapedPrefix = prefix.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+  const regex = new RegExp(`^${escapedPrefix}[_-][A-Za-z0-9_-]{32}$`);
   return regex.test(apiKey);
 }
 
