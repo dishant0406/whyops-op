@@ -3,31 +3,63 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { EmptyStateSimple } from "@/components/ui/empty-state-simple";
 import { Input } from "@/components/ui/input";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { AGENTS_TABLE_TEXT, Agent, MOCK_DATA } from "@/constants/mock-data";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, Search, Inbox } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  CreditCard,
+  Database,
+  Inbox,
+  MessageSquare,
+  MoreHorizontal,
+  Search,
+  Search as SearchIcon,
+  User,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
-import { EmptyStateSimple } from "@/components/ui/empty-state-simple";
 
 interface AgentsTableProps {
   initialAgents?: Agent[];
+}
+
+function AgentIcon({ type }: { type: string }) {
+  switch (type) {
+    case "user":
+      return <User className="h-5 w-5 text-foreground/60" />;
+    case "message":
+      return <MessageSquare className="h-5 w-5 text-foreground/60" />;
+    case "database":
+      return <Database className="h-5 w-5 text-foreground/60" />;
+    case "search":
+      return <SearchIcon className="h-5 w-5 text-foreground/60" />;
+    case "credit-card":
+      return <CreditCard className="h-5 w-5 text-foreground/60" />;
+    default:
+      return null;
+  }
+}
+
+function MoreIcon() {
+  return <MoreHorizontal className="h-4 w-4" />;
 }
 
 export function AgentsTable({ initialAgents }: AgentsTableProps) {
@@ -39,7 +71,7 @@ export function AgentsTable({ initialAgents }: AgentsTableProps) {
 
   const router = useRouter();
 
-  const filteredAgents = agents.filter((agent) =>
+  const filteredAgents = agents.filter((agent: Agent) =>
     agent.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -122,7 +154,7 @@ export function AgentsTable({ initialAgents }: AgentsTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredAgents.map((agent) => (
+            {filteredAgents.map((agent: Agent) => (
               <TableRow
                 key={agent.id}
                 className="hover:bg-surface-2/50 cursor-pointer transition-colors"
@@ -157,7 +189,7 @@ export function AgentsTable({ initialAgents }: AgentsTableProps) {
                         "bg-muted/30 text-muted-foreground"
                     )}
                   >
-                    {AGENTS_TABLE_TEXT.statusLabels[agent.status]}
+                    {AGENTS_TABLE_TEXT.statusLabels[agent.status as keyof typeof AGENTS_TABLE_TEXT.statusLabels]}
                   </Badge>
                 </TableCell>
                 <TableCell className="px-6 py-4 text-sm text-foreground">
@@ -225,108 +257,5 @@ export function AgentsTable({ initialAgents }: AgentsTableProps) {
         </div>
       )}
     </Card>
-  );
-}
-
-function AgentIcon({ type }: { type: string }) {
-  switch (type) {
-    case "user":
-      return (
-        <svg
-          className="h-5 w-5 text-foreground/60"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-          />
-        </svg>
-      );
-    case "message":
-      return (
-        <svg
-          className="h-5 w-5 text-foreground/60"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-          />
-        </svg>
-      );
-    case "database":
-      return (
-        <svg
-          className="h-5 w-5 text-foreground/60"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"
-          />
-        </svg>
-      );
-    case "search":
-      return (
-        <svg
-          className="h-5 w-5 text-foreground/60"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-          />
-        </svg>
-      );
-    case "credit-card":
-      return (
-        <svg
-          className="h-5 w-5 text-foreground/60"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-          />
-        </svg>
-      );
-    default:
-      return null;
-  }
-}
-
-function MoreIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <circle cx="8" cy="3" r="1" fill="currentColor" />
-      <circle cx="8" cy="8" r="1" fill="currentColor" />
-      <circle cx="8" cy="13" r="1" fill="currentColor" />
-    </svg>
   );
 }

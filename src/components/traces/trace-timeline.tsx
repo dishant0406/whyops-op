@@ -63,7 +63,7 @@ export function TraceTimeline() {
     <div className="h-full w-full overflow-y-auto bg-background p-8 scrollbar-thin">
       <div className="mx-auto max-w-4xl relative">
         {/* Continuous Vertical Line */}
-        <div className="absolute left-[3.5rem] top-4 bottom-4 w-px bg-border/20 -z-10" />
+        <div className="absolute left-14 top-4 bottom-4 w-px bg-border/20 -z-10" />
 
         <div className="space-y-6">
           {trace.spans.map((step) => {
@@ -111,7 +111,7 @@ export function TraceTimeline() {
                         {step.tag && (
                           <Badge
                             className={cn(
-                              "rounded-[4px] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider border shadow-none",
+                              "rounded-lg px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider border shadow-none",
                               TAG_STYLES[step.tag]
                             )}
                           >
