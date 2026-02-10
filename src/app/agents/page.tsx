@@ -4,10 +4,13 @@ import { SuccessRateChart } from "@/components/agents/success-rate-chart";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Button } from "@/components/ui/button";
-import { AGENT_DATA, CHART_DATA, STATS_DATA } from "@/constants/agents";
+import { getDashboardChartData, getDashboardStats, MOCK_DATA } from "@/constants/mock-data";
 import { Plus, Settings } from "lucide-react";
 
 export default function AgentsPage() {
+  const stats = getDashboardStats();
+  const chartData = getDashboardChartData();
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Sidebar */}
@@ -47,7 +50,7 @@ export default function AgentsPage() {
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
               <StatCard
                 title="Total Agents"
-                value={STATS_DATA.totalAgents}
+                value={stats.totalAgents}
                 icon={
                   <svg
                     className="h-6 w-6 text-primary"
@@ -66,7 +69,7 @@ export default function AgentsPage() {
               />
               <StatCard
                 title="Active Traces"
-                value={STATS_DATA.activeTraces.toLocaleString()}
+                value={stats.activeTraces.toLocaleString()}
                 icon={
                   <svg
                     className="h-6 w-6 text-primary"
@@ -85,12 +88,12 @@ export default function AgentsPage() {
               />
               <StatCard
                 title="Success Rate"
-                value={`${STATS_DATA.successRate.value}%`}
+                value={`${stats.successRate.value}%`}
                 trend={{
-                  value: STATS_DATA.successRate.trend,
-                  isPositive: STATS_DATA.successRate.isPositive,
+                  value: stats.successRate.trend,
+                  isPositive: stats.successRate.isPositive,
                 }}
-                subtitle={STATS_DATA.successRate.subtitle}
+                subtitle={stats.successRate.subtitle}
                 icon={
                   <svg
                     className="h-6 w-6 text-primary"
@@ -109,12 +112,12 @@ export default function AgentsPage() {
               />
               <StatCard
                 title="Avg Latency"
-                value={STATS_DATA.avgLatency.value}
+                value={stats.avgLatency.value}
                 trend={{
-                  value: STATS_DATA.avgLatency.trend,
-                  isPositive: STATS_DATA.avgLatency.isPositive,
+                  value: stats.avgLatency.trend,
+                  isPositive: stats.avgLatency.isPositive,
                 }}
-                subtitle={STATS_DATA.avgLatency.subtitle}
+                subtitle={stats.avgLatency.subtitle}
                 icon={
                   <svg
                     className="h-6 w-6 text-primary"
@@ -134,10 +137,10 @@ export default function AgentsPage() {
             </div>
 
             {/* Chart */}
-            <SuccessRateChart data={CHART_DATA} />
+            <SuccessRateChart data={chartData} />
 
             {/* Agents Table */}
-            <AgentsTable agents={AGENT_DATA} />
+            <AgentsTable initialAgents={MOCK_DATA.agents} />
           </div>
         </main>
       </div>

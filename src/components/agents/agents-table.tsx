@@ -19,31 +19,25 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { AGENTS_TABLE_TEXT } from "@/constants/agents";
+import { AGENTS_TABLE_TEXT, Agent, MOCK_DATA } from "@/constants/mock-data";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, Inbox } from "lucide-react";
+import { useRouter } from "next/navigation";
 import * as React from "react";
-
-interface Agent {
-  id: string;
-  name: string;
-  version: string;
-  status: "active" | "warning" | "error" | "inactive";
-  traces: number;
-  successRate: number;
-  lastActive: string;
-  icon: string;
-}
+import { EmptyStateSimple } from "@/components/ui/empty-state-simple";
 
 interface AgentsTableProps {
-  agents: Agent[];
+  initialAgents?: Agent[];
 }
 
-export function AgentsTable({ agents }: AgentsTableProps) {
+export function AgentsTable({ initialAgents }: AgentsTableProps) {
+  const agents = initialAgents || MOCK_DATA.agents;
   const [searchQuery, setSearchQuery] = React.useState("");
   const [sortBy, setSortBy] = React.useState(
     AGENTS_TABLE_TEXT.sortOptions[0]?.value ?? ""
   );
+
+  const router = useRouter();
 
   const filteredAgents = agents.filter((agent) =>
     agent.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -89,121 +83,147 @@ export function AgentsTable({ agents }: AgentsTableProps) {
       </div>
 
       {/* Table */}
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-surface-2/50">
-            {AGENTS_TABLE_TEXT.columns.map((column) => (
-              <TableHead
-                key={column}
-                className={cn(
-                  "px-6 py-3",
-                  column === AGENTS_TABLE_TEXT.actionColumn && "text-right"
-                )}
-              >
-                {column === AGENTS_TABLE_TEXT.actionColumn ? (
-                  <span className="sr-only">{column}</span>
-                ) : (
-                  column
-                )}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filteredAgents.map((agent) => (
-            <TableRow key={agent.id} className="hover:bg-surface-2/50">
-              <TableCell className="px-6 py-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-2">
-                    <AgentIcon type={agent.icon} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      {agent.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {agent.version}
-                    </p>
-                  </div>
-                </div>
-              </TableCell>
-              <TableCell className="px-6 py-4">
-                <Badge
+      {filteredAgents.length === 0 ? (
+        <EmptyStateSimple
+          title="No agents found"
+          description={
+            searchQuery
+              ? `No agents matching "${searchQuery}"`
+              : "No agents deployed yet. Create your first agent to get started."
+          }
+          icon={Inbox}
+          action={
+            !searchQuery && (
+              <Button variant="outline" size="sm">
+                Create Agent
+              </Button>
+            )
+          }
+        />
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-surface-2/50">
+              {AGENTS_TABLE_TEXT.columns.map((column) => (
+                <TableHead
+                  key={column}
                   className={cn(
-                    "font-medium",
-                    agent.status === "active" &&
-                      "bg-primary/20 text-primary",
-                    agent.status === "warning" &&
-                      "bg-accent/30 text-accent-foreground",
-                    agent.status === "error" &&
-                      "bg-destructive/20 text-destructive",
-                    agent.status === "inactive" &&
-                      "bg-muted/30 text-muted-foreground"
+                    "px-6 py-3",
+                    column === AGENTS_TABLE_TEXT.actionColumn && "text-right"
                   )}
                 >
-                  {AGENTS_TABLE_TEXT.statusLabels[agent.status]}
-                </Badge>
-              </TableCell>
-              <TableCell className="px-6 py-4 text-sm text-foreground">
-                {agent.traces.toLocaleString()}
-              </TableCell>
-              <TableCell className="px-6 py-4">
-                <span
-                  className={cn(
-                    "text-sm font-semibold",
-                    agent.successRate >= 95
-                      ? "text-primary"
-                      : agent.successRate >= 85
-                      ? "text-accent-foreground"
-                      : "text-destructive"
+                  {column === AGENTS_TABLE_TEXT.actionColumn ? (
+                    <span className="sr-only">{column}</span>
+                  ) : (
+                    column
                   )}
-                >
-                  {agent.successRate}%
-                </span>
-              </TableCell>
-              <TableCell className="px-6 py-4 text-sm text-muted-foreground">
-                {agent.lastActive}
-              </TableCell>
-              <TableCell className="px-6 py-4 text-right">
-                <button
-                  className="text-muted-foreground transition-colors hover:text-foreground"
-                  aria-label={AGENTS_TABLE_TEXT.actionLabel}
-                >
-                  <MoreIcon />
-                </button>
-              </TableCell>
+                </TableHead>
+              ))}
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {filteredAgents.map((agent) => (
+              <TableRow
+                key={agent.id}
+                className="hover:bg-surface-2/50 cursor-pointer transition-colors"
+                onClick={() => router.push(`/agents/${agent.id}`)}
+              >
+                <TableCell className="px-6 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-2">
+                      <AgentIcon type={agent.icon} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">
+                        {agent.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {agent.version}
+                      </p>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell className="px-6 py-4">
+                  <Badge
+                    className={cn(
+                      "font-medium",
+                      agent.status === "active" &&
+                        "bg-primary/20 text-primary",
+                      agent.status === "warning" &&
+                        "bg-accent/30 text-accent-foreground",
+                      agent.status === "error" &&
+                        "bg-destructive/20 text-destructive",
+                      agent.status === "inactive" &&
+                        "bg-muted/30 text-muted-foreground"
+                    )}
+                  >
+                    {AGENTS_TABLE_TEXT.statusLabels[agent.status]}
+                  </Badge>
+                </TableCell>
+                <TableCell className="px-6 py-4 text-sm text-foreground">
+                  {agent.tracesCount.toLocaleString()}
+                </TableCell>
+                <TableCell className="px-6 py-4">
+                  <span
+                    className={cn(
+                      "text-sm font-semibold",
+                      agent.successRate >= 95
+                        ? "text-primary"
+                        : agent.successRate >= 85
+                        ? "text-accent-foreground"
+                        : "text-destructive"
+                    )}
+                  >
+                    {agent.successRate}%
+                  </span>
+                </TableCell>
+                <TableCell className="px-6 py-4 text-sm text-muted-foreground">
+                  {agent.lastActive}
+                </TableCell>
+                <TableCell className="px-6 py-4 text-right">
+                  <button
+                    className="text-muted-foreground transition-colors hover:text-foreground"
+                    aria-label={AGENTS_TABLE_TEXT.actionLabel}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MoreIcon />
+                  </button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
 
       {/* Footer */}
-      <div className="flex items-center justify-between border-t border-border/30 px-6 py-4">
-        <p className="text-xs text-muted-foreground">
-          {AGENTS_TABLE_TEXT.countLabel(
-            filteredAgents.length,
-            agents.length
-          )}
-        </p>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-8 p-0"
-            disabled
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-8 p-0"
-            disabled
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+      {filteredAgents.length > 0 && (
+        <div className="flex items-center justify-between border-t border-border/30 px-6 py-4">
+          <p className="text-xs text-muted-foreground">
+            {AGENTS_TABLE_TEXT.countLabel(
+              filteredAgents.length,
+              agents.length
+            )}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 w-8 p-0"
+              disabled
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 w-8 p-0"
+              disabled
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
     </Card>
   );
 }
