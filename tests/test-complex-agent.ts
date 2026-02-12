@@ -1,5 +1,4 @@
 import fs from 'fs';
-import { spawn } from 'child_process';
 
 const API_KEY = process.argv[2];
 const BASE_URL = process.argv[3] || 'https://api.openai.com/v1';
@@ -148,6 +147,18 @@ async function main() {
     name: 'Complex Agent'
   });
   
+  // Create a project (which auto-creates dev, staging, prod environments)
+  const project = await post(`${AUTH_URL}/projects`, {
+    name: 'Test Project',
+    description: 'Project for complex agent testing'
+  }, { 'Authorization': `Bearer ${user.token}` });
+
+  // Get the development environment ID
+  const devEnv = project.environments.find((env: any) => env.name === 'DEVELOPMENT');
+  if (!devEnv) {
+    throw new Error('DEVELOPMENT environment not found in project');
+  }
+
   const provider = await post(`${AUTH_URL}/providers`, {
     name: 'Agent Provider',
     type: 'openai',
@@ -156,6 +167,8 @@ async function main() {
   }, { 'Authorization': `Bearer ${user.token}` });
 
   const key = await post(`${AUTH_URL}/api-keys`, {
+    projectId: project.project.id,
+    environmentId: devEnv.id,
     providerId: provider.id,
     name: 'Agent Key'
   }, { 'Authorization': `Bearer ${user.token}` });
@@ -163,6 +176,8 @@ async function main() {
   const PROXY_AUTH = { 'Authorization': `Bearer ${key.apiKey}` };
   const TRACE_ID = `trace_complex_${Date.now()}`;
   const USER_ID = user.user.id;
+  const PROJECT_ID = project.project.id;
+  const ENVIRONMENT_ID = devEnv.id;
   const PROVIDER_ID = provider.id;
 
   console.log(`   ✅ Setup complete. Trace ID: ${TRACE_ID}`);
@@ -221,6 +236,8 @@ async function main() {
           eventType: 'tool_call',
           traceId: TRACE_ID,
           userId: USER_ID,
+          projectId: PROJECT_ID,
+          environmentId: ENVIRONMENT_ID,
           providerId: PROVIDER_ID,
           content: { toolName: fnName, input: args, output: output },
           metadata: { executionTimeMs: Math.floor(Math.random() * 500) }

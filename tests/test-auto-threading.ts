@@ -1,4 +1,3 @@
-import fs from 'fs';
 
 const API_KEY = process.argv[2];
 const BASE_URL = process.argv[3] || 'https://api.openai.com/v1';
@@ -174,10 +173,15 @@ class SimulatedUser {
   userId: string;
   providerId: string;
   
-  constructor(name: string, authHeader: any, userId: string, providerId: string) {
+  projectId: string;
+  environmentId: string;
+  
+  constructor(name: string, authHeader: any, userId: string, projectId: string, environmentId: string, providerId: string) {
     this.name = name;
     this.authHeader = authHeader;
     this.userId = userId;
+    this.projectId = projectId;
+    this.environmentId = environmentId;
     this.providerId = providerId;
     this.history = [
       { role: 'system', content: 'You are a helpful assistant.' }
@@ -221,7 +225,9 @@ class SimulatedUser {
             await post(`${ANALYSE_URL}/events`, {
                 eventType: 'tool_call',
                 traceId: traceId,
-                userId: this.userId, 
+                userId: this.userId,
+                projectId: this.projectId,
+                environmentId: this.environmentId,
                 providerId: this.providerId,
                 content: {
                     toolName: fn,
@@ -286,6 +292,18 @@ async function main() {
     name: 'Stress Tester'
   });
   
+  // Create a project (which auto-creates dev, staging, prod environments)
+  const project = await post(`${AUTH_URL}/projects`, {
+    name: 'Stress Test Project',
+    description: 'Project for auto-threading stress test'
+  }, { 'Authorization': `Bearer ${user.token}` });
+
+  // Get the development environment ID
+  const devEnv = project.environments.find((env: any) => env.name === 'DEVELOPMENT');
+  if (!devEnv) {
+    throw new Error('DEVELOPMENT environment not found in project');
+  }
+
   const provider = await post(`${AUTH_URL}/providers`, {
     name: 'Stress Provider',
     type: 'openai',
@@ -294,21 +312,25 @@ async function main() {
   }, { 'Authorization': `Bearer ${user.token}` });
 
   const key = await post(`${AUTH_URL}/api-keys`, {
+    projectId: project.project.id,
+    environmentId: devEnv.id,
     providerId: provider.id,
     name: 'Stress Key'
   }, { 'Authorization': `Bearer ${user.token}` });
 
   const PROXY_AUTH = { 'Authorization': `Bearer ${key.apiKey}` };
+  const PROJECT_ID = project.project.id;
+  const ENVIRONMENT_ID = devEnv.id;
   
   console.log(`✅ Identity Setup: ${setupEmail}`);
 
   // 2. Initialize 5 Users
   const USERS = [
-    new SimulatedUser("User 1", PROXY_AUTH, user.user.id, provider.id),
-    new SimulatedUser("User 2", PROXY_AUTH, user.user.id, provider.id),
-    new SimulatedUser("User 3", PROXY_AUTH, user.user.id, provider.id),
-    new SimulatedUser("User 4", PROXY_AUTH, user.user.id, provider.id),
-    new SimulatedUser("User 5", PROXY_AUTH, user.user.id, provider.id)
+    new SimulatedUser("User 1", PROXY_AUTH, user.user.id, PROJECT_ID, ENVIRONMENT_ID, provider.id),
+    new SimulatedUser("User 2", PROXY_AUTH, user.user.id, PROJECT_ID, ENVIRONMENT_ID, provider.id),
+    new SimulatedUser("User 3", PROXY_AUTH, user.user.id, PROJECT_ID, ENVIRONMENT_ID, provider.id),
+    new SimulatedUser("User 4", PROXY_AUTH, user.user.id, PROJECT_ID, ENVIRONMENT_ID, provider.id),
+    new SimulatedUser("User 5", PROXY_AUTH, user.user.id, PROJECT_ID, ENVIRONMENT_ID, provider.id)
   ];
 
   console.log('\n🏁 Starting Interleaved Conversations...');

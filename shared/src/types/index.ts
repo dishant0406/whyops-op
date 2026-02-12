@@ -48,6 +48,7 @@ export interface User {
   organizationId?: string;
   isActive: boolean;
   metadata?: Record<string, any>;
+  onboardingComplete?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

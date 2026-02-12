@@ -9,6 +9,7 @@ export interface SessionUser {
   email: string;
   name: string | null;
   metadata?: any;
+  onboardingComplete?: boolean;
   isActive?: boolean;
 }
 
@@ -59,6 +60,7 @@ export async function sessionMiddleware(c: Context, next: Next) {
           email: session.user.email,
           name: session.user.name,
           metadata: appUser.metadata,
+          onboardingComplete: Boolean(appUser.metadata?.onboardingComplete),
           isActive: appUser.isActive,
         };
         c.set('user', mergedUser);

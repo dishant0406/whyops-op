@@ -1,6 +1,7 @@
 import { createServiceLogger } from '@whyops/shared/logger';
 import { Context } from 'hono';
 import { auth } from '../lib/auth';
+import { UserService } from '../services';
 import { ResponseUtil } from '../utils';
 
 const logger = createServiceLogger('auth:user-controller');
@@ -22,6 +23,7 @@ export class UserController {
         email: user.email,
         name: user.name,
         metadata: user.metadata,
+        onboardingComplete: Boolean(user.metadata?.onboardingComplete),
         isActive: user.isActive,
       });
     } catch (error: any) {
@@ -42,7 +44,7 @@ export class UserController {
       }
 
       const data = await c.req.json();
-      
+
       // Use Better Auth's update user API
       await auth.api.updateUser({
         headers: c.req.raw.headers,
@@ -52,9 +54,11 @@ export class UserController {
         },
       });
 
-      // For custom fields, we'd need to update them separately
-      // This is a simplified version - you might want to extend Better Auth
-      // or use hooks to handle custom fields
+      if (typeof data.onboardingComplete === 'boolean') {
+        await UserService.updateUser(user.id, {
+          onboardingComplete: data.onboardingComplete,
+        });
+      }
 
       return ResponseUtil.success(c, {
         message: 'User updated successfully',

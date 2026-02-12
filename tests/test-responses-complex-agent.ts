@@ -19,47 +19,56 @@ const HEADERS = { 'Content-Type': 'application/json' };
 const TOOLS = [
   {
     type: 'function',
-    name: 'get_weather',
+    function: {
+      name: 'get_weather',
       description: 'Get current weather for a location',
       parameters: {
         type: 'object',
         properties: { location: { type: 'string' } },
         required: ['location']
       }
+    }
   },
   {
     type: 'function',
-name: 'calculate',
+    function: {
+      name: 'calculate',
       description: 'Perform a mathematical calculation',
       parameters: {
         type: 'object',
         properties: { expression: { type: 'string' } },
         required: ['expression']
       }
+    }
   },
   {
     type: 'function',
-name: 'get_stock_price',
+    function: {
+      name: 'get_stock_price',
       description: 'Get stock price for a ticker symbol',
       parameters: {
         type: 'object',
         properties: { ticker: { type: 'string' } },
         required: ['ticker']
       }
+    }
   },
   {
     type: 'function',
-name: 'search_news',
+    function: {
+      name: 'search_news',
       description: 'Search for recent news articles about a topic',
       parameters: {
         type: 'object',
         properties: { query: { type: 'string' } },
         required: ['query']
       }
+    }
   },
   {
     type: 'function',
- name: 'send_email',
+    function: {
+      name: 'send_email',
       description: 'Send an email to a recipient',
       parameters: {
         type: 'object',
@@ -70,10 +79,12 @@ name: 'search_news',
         },
         required: ['to', 'subject', 'body']
       }
+    }
   },
   {
     type: 'function',
-    name: 'translate_text',
+    function: {
+      name: 'translate_text',
       description: 'Translate text from one language to another',
       parameters: {
         type: 'object',
@@ -83,6 +94,7 @@ name: 'search_news',
         },
         required: ['text', 'target_language']
       }
+    }
   }
 ];
 
@@ -132,6 +144,18 @@ async function main() {
     name: 'Complex Agent'
   });
   
+  // Create a project (which auto-creates dev, staging, prod environments)
+  const project = await post(`${AUTH_URL}/projects`, {
+    name: 'Test Responses Project',
+    description: 'Project for complex agent testing with responses API'
+  }, { 'Authorization': `Bearer ${user.token}` });
+
+  // Get the development environment ID
+  const devEnv = project.environments.find((env: any) => env.name === 'DEVELOPMENT');
+  if (!devEnv) {
+    throw new Error('DEVELOPMENT environment not found in project');
+  }
+
   const provider = await post(`${AUTH_URL}/providers`, {
     name: 'Agent Provider',
     type: 'openai',
@@ -140,6 +164,8 @@ async function main() {
   }, { 'Authorization': `Bearer ${user.token}` });
 
   const key = await post(`${AUTH_URL}/api-keys`, {
+    projectId: project.project.id,
+    environmentId: devEnv.id,
     providerId: provider.id,
     name: 'Agent Key'
   }, { 'Authorization': `Bearer ${user.token}` });
@@ -147,6 +173,8 @@ async function main() {
   const PROXY_AUTH = { 'Authorization': `Bearer ${key.apiKey}` };
   const TRACE_ID = `trace_resp_${Date.now()}`;
   const USER_ID = user.user.id;
+  const PROJECT_ID = project.project.id;
+  const ENVIRONMENT_ID = devEnv.id;
   const PROVIDER_ID = provider.id;
 
   console.log(`   ✅ Setup complete. Trace ID: ${TRACE_ID}`);
@@ -243,6 +271,8 @@ async function main() {
               eventType: 'tool_call',
               traceId: TRACE_ID,
               userId: USER_ID,
+              projectId: PROJECT_ID,
+              environmentId: ENVIRONMENT_ID,
               providerId: PROVIDER_ID,
               content: { toolName: fnName, input: args, output: output },
               metadata: { executionTimeMs: 100 }

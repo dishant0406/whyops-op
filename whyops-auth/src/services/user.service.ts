@@ -6,6 +6,7 @@ const logger = createServiceLogger('auth:user-service');
 export interface UpdateUserData {
   name?: string;
   metadata?: Record<string, any>;
+  onboardingComplete?: boolean;
 }
 
 export class UserService {
@@ -33,6 +34,13 @@ export class UserService {
     // Update allowed fields
     if (data.name !== undefined) user.name = data.name;
     if (data.metadata !== undefined) user.metadata = data.metadata;
+    if (data.onboardingComplete !== undefined) {
+      const metadata = user.metadata ?? {};
+      user.metadata = {
+        ...metadata,
+        onboardingComplete: data.onboardingComplete,
+      };
+    }
 
     await user.save();
 

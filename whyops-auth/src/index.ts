@@ -3,10 +3,12 @@ import env from '@whyops/shared/env';
 import { createServiceLogger } from '@whyops/shared/logger';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import type { Context, MiddlewareHandler } from 'hono';
 import { logger as honoLogger } from 'hono/logger';
 import { auth } from './lib/auth';
 import { requireAuth, sessionMiddleware } from './middleware/session';
 import apiKeysRouter from './routes/apiKeys';
+import authRouter from './routes/auth';
 import healthRouter from './routes/health';
 import migrateRouter from './routes/migrate';
 import projectsRouter from './routes/projects';
@@ -16,6 +18,9 @@ import { verifyEmailConnection } from './utils/email.util';
 
 const logger = createServiceLogger('auth');
 const app = new Hono();
+
+type MagicLinkRateState = Map<string, { count: number; start: number }>;
+const MAGIC_LINK_RATE_LIMIT: MagicLinkRateState = new Map();
 
 // Initialize database
 await initDatabase();
@@ -42,8 +47,38 @@ app.use(
   })
 );
 
+const magicLinkLimiter: MiddlewareHandler = async (c: Context, next) => {
+  const ipHeader =
+    c.req.header('x-forwarded-for') ||
+    c.req.header('x-real-ip') ||
+    c.req.raw.headers.get('cf-connecting-ip') ||
+    c.req.raw.headers.get('x-forwarded-for') ||
+    'unknown';
+  const ip = ipHeader.split(',')[0].trim() || 'unknown';
+  const now = Date.now();
+  const windowMs = 60 * 60 * 1000;
+
+  const entry = MAGIC_LINK_RATE_LIMIT.get(ip);
+
+  if (!entry || now - entry.start > windowMs) {
+    MAGIC_LINK_RATE_LIMIT.set(ip, { count: 1, start: now });
+  } else if (entry.count >= 3) {
+    return c.json({ error: 'Too many requests. Try again later.' }, 429);
+  } else {
+    entry.count += 1;
+    MAGIC_LINK_RATE_LIMIT.set(ip, entry);
+  }
+
+  await next();
+};
+
+app.use('/api/auth/sign-in/magic-link', magicLinkLimiter);
+
 // Public routes (no session required)
 app.route('/health', healthRouter);
+
+// Custom auth routes (no session required)
+app.route('/api/auth', authRouter);
 
 // Better Auth migration endpoint (only in development, no session required)
 if (env.NODE_ENV === 'development') {
@@ -51,7 +86,7 @@ if (env.NODE_ENV === 'development') {
 }
 
 // Better Auth handler - handles /api/auth/* endpoints
-app.on(['POST', 'GET'], '/api/auth/**', (c) => {
+app.on(['POST', 'GET'], '/api/auth/*', (c) => {
   return auth.handler(c.req.raw);
 });
 
