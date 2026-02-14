@@ -57,7 +57,7 @@ export async function proxy(request: NextRequest) {
 
   if (onboardingComplete && (pathname === "/" || pathname === "/onboarding")) {
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/dashboard";
+    redirectUrl.pathname = "/agents";
     return NextResponse.redirect(redirectUrl);
   }
 

@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import * as React from "react";
 
 const navItems = [
-  { label: "Dashboard", href: "/dashboard" },
   { label: "Agents", href: "/agents" },
   { label: "Traces", href: "/traces" },
   { label: "Settings", href: "/settings" },

@@ -57,9 +57,9 @@ export default function OnboardingPage() {
     // Wait for progress to be fetched
     if (!onboardingProgress) return;
 
-    // If onboarding is complete, redirect to dashboard
+    // If onboarding is complete, redirect to agents
     if (onboardingProgress.onboardingComplete) {
-      router.push("/dashboard");
+      router.push("/agents");
       return;
     }
 
@@ -86,7 +86,7 @@ export default function OnboardingPage() {
   // Also check user object for onboarding complete status
   React.useEffect(() => {
     if (user?.onboardingComplete) {
-      router.push("/dashboard");
+      router.push("/agents");
     }
   }, [user, router]);
 
@@ -111,7 +111,7 @@ export default function OnboardingPage() {
     setIsCompleting(true);
     try {
       await completeOnboarding();
-      router.push("/dashboard");
+      router.push("/agents");
     } catch (error) {
       console.error("Failed to complete onboarding:", error);
       toast.error("Failed to complete onboarding. Please try again.");

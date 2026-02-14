@@ -4,6 +4,8 @@ import { ConnectionModal } from "@/components/dashboard/connection-modal";
 import { Radar } from "@/components/dashboard/radar";
 import { Button } from "@/components/ui/button";
 import { MacOSWindow, MacOSWindowContent } from "@/components/ui/macos-window";
+import { useConfigStore } from "@/stores/configStore";
+import { useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
 import * as React from "react";
 
@@ -11,6 +13,16 @@ type EmptyStateProps = React.HTMLAttributes<HTMLDivElement>;
 
 export function EmptyState({ className, ...props }: EmptyStateProps) {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const { config, fetchConfig } = useConfigStore();
+  const { onboardingProgress, fetchOnboardingProgress } = useAuthStore();
+
+  const isOnboardingComplete = onboardingProgress?.onboardingComplete ?? false;
+
+  // Fetch config and onboarding progress on mount
+  React.useEffect(() => {
+    fetchConfig();
+    fetchOnboardingProgress();
+  }, [fetchConfig, fetchOnboardingProgress]);
 
   return (
     <>
@@ -50,25 +62,54 @@ export function EmptyState({ className, ...props }: EmptyStateProps) {
         </div>
 
         {/* Code Block */}
-        <MacOSWindow className="w-full max-w-md">
-          <MacOSWindowContent className="px-5 py-4">
-            <pre className="text-xs leading-relaxed">
-              <code>
-                <span className="text-primary">$</span>{" "}
-                <span className="text-foreground/80">curl -X POST </span>
-                <span className="text-accent">
-                  https://api.whyops.ai/trace
-                </span>
-                {" \\"}
-                {"\n"}
-                <span className="text-foreground/80">  -d </span>
-                <span className="text-accent">
-                  &apos;&#123;&quot;agent&quot;: &quot;test_ping&quot;, &quot;status&quot;: &quot;ok&quot;&#125;&apos;
-                </span>
-              </code>
-            </pre>
-          </MacOSWindowContent>
-        </MacOSWindow>
+        {!isOnboardingComplete ? (
+          <MacOSWindow className="w-full max-w-md">
+            <MacOSWindowContent className="px-5 py-4">
+              <pre className="text-xs leading-relaxed">
+                <code>
+                  <span className="text-primary">$</span>{" "}
+                  <span className="text-foreground/80">Complete onboarding first to get your API endpoint</span>
+                  {"\n"}
+                  {"\n"}
+                  <span className="text-muted-foreground">Visit{" "}
+                  <span className="text-accent">/onboarding</span> to set up your provider and project.</span>
+                </code>
+              </pre>
+            </MacOSWindowContent>
+          </MacOSWindow>
+        ) : (
+          <MacOSWindow className="w-full max-w-md">
+            <MacOSWindowContent className="px-5 py-4">
+              <pre className="text-xs leading-relaxed">
+                <code>
+                  <span className="text-primary">$</span>{" "}
+                  <span className="text-foreground/80">curl -X POST </span>
+                  <span className="text-accent">
+                    {config?.analyseBaseUrl || "https://api.whyops.ai"}/events
+                  </span>
+                  {" \\"}
+                  {"\n"}
+                  <span className="text-foreground/80">  -H </span>
+                  <span className="text-accent">
+                    &apos;Authorization: Bearer YOUR_API_KEY&apos;
+                  </span>
+                  {" \\"}
+                  {"\n"}
+                  <span className="text-foreground/80">  -H </span>
+                  <span className="text-accent">
+                    &apos;Content-Type: application/json&apos;
+                  </span>
+                  {" \\"}
+                  {"\n"}
+                  <span className="text-foreground/80">  -d </span>
+                  <span className="text-accent">
+                    &apos;&#123;&quot;eventType&quot;: &quot;user_message&quot;, &quot;agent&quot;: &quot;test_agent&quot;&#125;&apos;
+                  </span>
+                </code>
+              </pre>
+            </MacOSWindowContent>
+          </MacOSWindow>
+        )}
       </div>
 
       <ConnectionModal open={isModalOpen} onOpenChange={setIsModalOpen} />

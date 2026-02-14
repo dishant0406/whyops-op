@@ -1,4 +1,5 @@
 import { AgentsTable } from "@/components/agents/agents-table";
+import { EmptyState } from "@/components/dashboard/empty-state";
 import { StatCard } from "@/components/agents/stat-card";
 import { SuccessRateChart } from "@/components/agents/success-rate-chart";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,15 @@ export const metadata: Metadata = {
 export default function AgentsPage() {
   const stats = getDashboardStats();
   const chartData = getDashboardChartData();
+  const agents = MOCK_DATA.agents;
+
+  if (agents.length === 0) {
+    return (
+      <div className="min-h-screen">
+        <EmptyState />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-8">
