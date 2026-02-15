@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 import { apiClient } from "@/lib/api-client";
 
@@ -44,11 +45,13 @@ interface ProjectState {
   currentProject: Project | null;
   currentEnvironments: Environment[];
   masterKeys: MasterKey[];
+  currentApiKey: string | null;
   isLoading: boolean;
   error: string | null;
 
   fetchProjects: () => Promise<void>;
   createProject: (data: ProjectInput) => Promise<{ masterKeys: MasterKey[] }>;
+  setCurrentApiKey: (key: string) => void;
   clearMasterKeys: () => void;
   clearError: () => void;
 }
@@ -58,6 +61,7 @@ export const useProjectStore = create<ProjectState>((set) => ({
   currentProject: null,
   currentEnvironments: [],
   masterKeys: [],
+  currentApiKey: null,
   isLoading: false,
   error: null,
 
@@ -108,7 +112,9 @@ export const useProjectStore = create<ProjectState>((set) => ({
     }
   },
 
-  clearMasterKeys: () => set({ masterKeys: [] }),
+  setCurrentApiKey: (key: string) => set({ currentApiKey: key }),
+
+  clearMasterKeys: () => set({ masterKeys: [], currentApiKey: null }),
 
   clearError: () => set({ error: null }),
 }));

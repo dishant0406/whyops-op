@@ -94,6 +94,8 @@ src/
 └── index.ts      # App entry point
 ```
 
+### Backend Path: /Users/dishants/projects/whyops/be
+
 ### Key Services
 - **whyops-auth**: Authentication, config endpoint
 - **whyops-proxy**: LLM proxy (OpenAI, Anthropic compatible)

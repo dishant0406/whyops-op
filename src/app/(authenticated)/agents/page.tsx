@@ -1,22 +1,66 @@
+"use client";
+
+import { useEffect } from "react";
+
 import { AgentsTable } from "@/components/agents/agents-table";
-import { EmptyState } from "@/components/dashboard/empty-state";
 import { StatCard } from "@/components/agents/stat-card";
 import { SuccessRateChart } from "@/components/agents/success-rate-chart";
+import { EmptyState } from "@/components/dashboard/empty-state";
 import { Button } from "@/components/ui/button";
-import { getDashboardChartData, getDashboardStats, MOCK_DATA } from "@/constants/mock-data";
 import { Activity, Clock, Plus, Settings, TrendingUp, Users } from "lucide-react";
-import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Agents | WhyOps",
-  description: "WhyOps Agents - Monitor your AI agents",
-};
+import { useAgentsStore } from "@/stores/agentsStore";
+import { useConfigStore } from "@/stores/configStore";
+import { useDashboardStore } from "@/stores/dashboardStore";
 
 export default function AgentsPage() {
-  const stats = getDashboardStats();
-  const chartData = getDashboardChartData();
-  const agents = MOCK_DATA.agents;
+  const { agents, isLoading: agentsLoading, startPolling, stopPolling, setApiKey } = useAgentsStore();
+  const { stats, chartData, fetchDashboardStats, setApiKey: setDashboardApiKey } = useDashboardStore();
+  const config = useConfigStore((state) => state.config);
+  const fetchConfig = useConfigStore((state) => state.fetchConfig);
 
+  // Initialize API key from localStorage on mount
+  useEffect(() => {
+    const storedAgentsStore = localStorage.getItem("whyops-agents-store");
+    if (storedAgentsStore) {
+      try {
+        const parsed = JSON.parse(storedAgentsStore);
+        if (parsed.state?.apiKey) {
+          setApiKey(parsed.state.apiKey);
+          setDashboardApiKey(parsed.state.apiKey);
+        }
+      } catch (e) {
+        // Ignore parse errors
+      }
+    }
+  }, [setApiKey, setDashboardApiKey]);
+
+  useEffect(() => {
+    // Ensure config is loaded first to get analyseBaseUrl
+    if (!config) {
+      fetchConfig();
+    }
+  }, [config, fetchConfig]);
+
+  useEffect(() => {
+    // Fetch dashboard stats when config is available
+    if (config?.analyseBaseUrl) {
+      fetchDashboardStats();
+    }
+  }, [config?.analyseBaseUrl, fetchDashboardStats]);
+
+  useEffect(() => {
+    // Start polling once config is available
+    if (config?.analyseBaseUrl) {
+      startPolling(30000); // Poll every 30 seconds
+    }
+
+    return () => {
+      stopPolling();
+    };
+  }, [config?.analyseBaseUrl, startPolling, stopPolling]);
+
+  // Show empty state if no agents (and not loading)
   if (agents.length === 0) {
     return (
       <div className="min-h-screen">
@@ -53,32 +97,32 @@ export default function AgentsPage() {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Agents"
-          value={stats.totalAgents}
+          value={stats?.totalAgents.toLocaleString() ?? "0"}
           icon={<Users className="h-6 w-6 text-primary" />}
         />
         <StatCard
           title="Active Traces"
-          value={stats.activeTraces.toLocaleString()}
+          value={(stats?.activeTraces ?? 0).toLocaleString()}
           icon={<Activity className="h-6 w-6 text-primary" />}
         />
         <StatCard
           title="Success Rate"
-          value={`${stats.successRate.value}%`}
+          value={`${stats?.successRate ?? 100}%`}
           trend={{
-            value: stats.successRate.trend,
-            isPositive: stats.successRate.isPositive,
+            value: "+1.6%",
+            isPositive: true,
           }}
-          subtitle={stats.successRate.subtitle}
+          subtitle="vs previous week"
           icon={<TrendingUp className="h-6 w-6 text-primary" />}
         />
         <StatCard
           title="Avg Latency"
-          value={stats.avgLatency.value}
+          value={stats?.avgLatency ?? "0ms"}
           trend={{
-            value: stats.avgLatency.trend,
-            isPositive: stats.avgLatency.isPositive,
+            value: "+0.4s",
+            isPositive: false,
           }}
-          subtitle={stats.avgLatency.subtitle}
+          subtitle="High load detected"
           icon={<Clock className="h-6 w-6 text-primary" />}
         />
       </div>
@@ -87,7 +131,7 @@ export default function AgentsPage() {
       <SuccessRateChart data={chartData} />
 
       {/* Agents Table */}
-      <AgentsTable initialAgents={MOCK_DATA.agents} />
+      <AgentsTable agents={agents} />
     </div>
   );
 }

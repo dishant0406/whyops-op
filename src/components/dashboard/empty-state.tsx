@@ -2,11 +2,13 @@
 
 import { ConnectionModal } from "@/components/dashboard/connection-modal";
 import { Radar } from "@/components/dashboard/radar";
+import { CodeBlock } from "@/components/onboarding/code-block";
 import { Button } from "@/components/ui/button";
 import { MacOSWindow, MacOSWindowContent } from "@/components/ui/macos-window";
-import { useConfigStore } from "@/stores/configStore";
-import { useAuthStore } from "@/stores/authStore";
+import { goToDocumentation } from "@/lib/helper";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/authStore";
+import { useConfigStore } from "@/stores/configStore";
 import * as React from "react";
 
 type EmptyStateProps = React.HTMLAttributes<HTMLDivElement>;
@@ -17,6 +19,13 @@ export function EmptyState({ className, ...props }: EmptyStateProps) {
   const { onboardingProgress, fetchOnboardingProgress } = useAuthStore();
 
   const isOnboardingComplete = onboardingProgress?.onboardingComplete ?? false;
+  const onboardingMessage = `Complete onboarding first to get your API endpoint\n\nVisit /onboarding to set up your provider and project.`;
+  const curlCommand = [
+    "curl -X POST " + (config?.analyseBaseUrl || "https://api.whyops.ai") + "/events \\",
+    "  -H 'Authorization: Bearer YOUR_API_KEY' \\",
+    "  -H 'Content-Type: application/json' \\",
+    "  -d '{\"eventType\": \"user_message\", \"agent\": \"test_agent\"}'",
+  ].join("\n");
 
   // Fetch config and onboarding progress on mount
   React.useEffect(() => {
@@ -51,7 +60,7 @@ export function EmptyState({ className, ...props }: EmptyStateProps) {
 
         {/* Action Buttons */}
         <div className="mb-12 flex items-center gap-3">
-          <Button variant="primary" size="md">
+          <Button onClick={goToDocumentation} variant="primary" size="md">
             <BookIcon className="h-4 w-4" />
             View Integration Guide
           </Button>
@@ -64,49 +73,14 @@ export function EmptyState({ className, ...props }: EmptyStateProps) {
         {/* Code Block */}
         {!isOnboardingComplete ? (
           <MacOSWindow className="w-full max-w-md">
-            <MacOSWindowContent className="px-5 py-4">
-              <pre className="text-xs leading-relaxed">
-                <code>
-                  <span className="text-primary">$</span>{" "}
-                  <span className="text-foreground/80">Complete onboarding first to get your API endpoint</span>
-                  {"\n"}
-                  {"\n"}
-                  <span className="text-muted-foreground">Visit{" "}
-                  <span className="text-accent">/onboarding</span> to set up your provider and project.</span>
-                </code>
-              </pre>
+            <MacOSWindowContent>
+              <CodeBlock className="rounded-none border-none" code={onboardingMessage} language="text" />
             </MacOSWindowContent>
           </MacOSWindow>
         ) : (
           <MacOSWindow className="w-full max-w-md">
-            <MacOSWindowContent className="px-5 py-4">
-              <pre className="text-xs leading-relaxed">
-                <code>
-                  <span className="text-primary">$</span>{" "}
-                  <span className="text-foreground/80">curl -X POST </span>
-                  <span className="text-accent">
-                    {config?.analyseBaseUrl || "https://api.whyops.ai"}/events
-                  </span>
-                  {" \\"}
-                  {"\n"}
-                  <span className="text-foreground/80">  -H </span>
-                  <span className="text-accent">
-                    &apos;Authorization: Bearer YOUR_API_KEY&apos;
-                  </span>
-                  {" \\"}
-                  {"\n"}
-                  <span className="text-foreground/80">  -H </span>
-                  <span className="text-accent">
-                    &apos;Content-Type: application/json&apos;
-                  </span>
-                  {" \\"}
-                  {"\n"}
-                  <span className="text-foreground/80">  -d </span>
-                  <span className="text-accent">
-                    &apos;&#123;&quot;eventType&quot;: &quot;user_message&quot;, &quot;agent&quot;: &quot;test_agent&quot;&#125;&apos;
-                  </span>
-                </code>
-              </pre>
+            <MacOSWindowContent>
+              <CodeBlock code={curlCommand} className="rounded-none border-none" language="bash" />
             </MacOSWindowContent>
           </MacOSWindow>
         )}

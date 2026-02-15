@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { AGENTS_TABLE_TEXT, Agent, MOCK_DATA } from "@/constants/mock-data";
+import type { Agent } from "@/stores/agentsStore";
 import { cn } from "@/lib/utils";
 import {
   ChevronLeft,
@@ -38,10 +38,26 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 
 interface AgentsTableProps {
-  initialAgents?: Agent[];
+  agents?: Agent[];
 }
 
-function AgentIcon({ type }: { type: string }) {
+const AGENTS_TABLE_TEXT = {
+  title: "Agents List",
+  searchPlaceholder: "Search agents...",
+  sortPlaceholder: "Sort by",
+  sortOptions: [
+    { value: "last-7-days", label: "Last 7 days" },
+    { value: "last-30-days", label: "Last 30 days" },
+    { value: "all-time", label: "All time" },
+  ],
+  columns: ["Name", "Status", "Traces", "Success", "Last Active", "Actions"],
+  actionColumn: "Actions",
+  actionLabel: "More options",
+  countLabel: (filtered: number, total: number) =>
+    `Showing ${filtered} of ${total} agents`,
+};
+
+function AgentIcon({ type }: { type?: string }) {
   switch (type) {
     case "user":
       return <User className="h-5 w-5 text-foreground/60" />;
@@ -54,7 +70,7 @@ function AgentIcon({ type }: { type: string }) {
     case "credit-card":
       return <CreditCard className="h-5 w-5 text-foreground/60" />;
     default:
-      return null;
+      return <User className="h-5 w-5 text-foreground/60" />;
   }
 }
 
@@ -62,8 +78,28 @@ function MoreIcon() {
   return <MoreHorizontal className="h-4 w-4" />;
 }
 
-export function AgentsTable({ initialAgents }: AgentsTableProps) {
-  const agents = initialAgents || MOCK_DATA.agents;
+function formatLastActive(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+export function AgentsTable({ agents = [] }: AgentsTableProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [sortBy, setSortBy] = React.useState(
     AGENTS_TABLE_TEXT.sortOptions[0]?.value ?? ""
@@ -163,14 +199,14 @@ export function AgentsTable({ initialAgents }: AgentsTableProps) {
                 <TableCell className="px-6 py-4">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-2">
-                      <AgentIcon type={agent.icon} />
+                      <AgentIcon type={agent.metadata?.icon as string | undefined} />
                     </div>
                     <div>
                       <p className="text-sm font-medium text-foreground">
                         {agent.name}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {agent.version}
+                        {agent.versionHash?.substring(0, 8) || "v1.0.0"}
                       </p>
                     </div>
                   </div>
@@ -179,17 +215,11 @@ export function AgentsTable({ initialAgents }: AgentsTableProps) {
                   <Badge
                     className={cn(
                       "font-medium",
-                      agent.status === "active" &&
-                        "bg-primary/20 text-primary",
-                      agent.status === "warning" &&
-                        "bg-accent/30 text-accent-foreground",
-                      agent.status === "error" &&
-                        "bg-destructive/20 text-destructive",
-                      agent.status === "inactive" &&
-                        "bg-muted/30 text-muted-foreground"
+                      agent.status === "active" && "bg-primary/20 text-primary",
+                      agent.status === "inactive" && "bg-muted/30 text-muted-foreground"
                     )}
                   >
-                    {AGENTS_TABLE_TEXT.statusLabels[agent.status as keyof typeof AGENTS_TABLE_TEXT.statusLabels]}
+                    {agent.status === "active" ? "Active" : "Inactive"}
                   </Badge>
                 </TableCell>
                 <TableCell className="px-6 py-4 text-sm text-foreground">
@@ -210,7 +240,7 @@ export function AgentsTable({ initialAgents }: AgentsTableProps) {
                   </span>
                 </TableCell>
                 <TableCell className="px-6 py-4 text-sm text-muted-foreground">
-                  {agent.lastActive}
+                  {formatLastActive(agent.lastActive)}
                 </TableCell>
                 <TableCell className="px-6 py-4 text-right">
                   <button

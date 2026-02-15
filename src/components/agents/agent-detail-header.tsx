@@ -2,18 +2,15 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getAgent } from "@/constants/mock-data";
+import type { Agent } from "@/stores/agentsStore";
 import { ChevronLeft, Fingerprint, Play, Settings } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
 
-export function AgentDetailHeader() {
-  const params = useParams();
-  const agentId = (params.agentId as string) || "1";
-  const agent = getAgent(agentId);
+interface AgentDetailHeaderProps {
+  agent: Agent;
+}
 
-  if (!agent) return null;
-
+export function AgentDetailHeader({ agent }: AgentDetailHeaderProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center text-sm font-medium text-muted-foreground mb-4">

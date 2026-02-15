@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyStateSimple } from "@/components/ui/empty-state-simple";
@@ -12,7 +14,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getAgent } from "@/constants/mock-data";
 import {
   AlertCircle,
   AlertTriangle,
@@ -20,23 +21,30 @@ import {
   CheckCircle,
   ChevronDown,
   Filter,
+  ListRestart,
   Search,
-  ListRestart
 } from "lucide-react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 
-export function RecentTracesTable() {
+import { useThreadsStore } from "@/stores/threadsStore";
+
+interface RecentTracesTableProps {
+  agentId: string;
+}
+
+export function RecentTracesTable({ agentId }: RecentTracesTableProps) {
   const router = useRouter();
-  const params = useParams();
-  const agentId = (params.agentId as string) || "1";
-  const agent = getAgent(agentId);
+  const { threads, isLoading, fetchThreads } = useThreadsStore();
   const [searchQuery, setSearchQuery] = React.useState("");
 
-  if (!agent) return null;
+  useEffect(() => {
+    fetchThreads();
+  }, [fetchThreads]);
 
-  const filteredTraces = agent.traces.filter((trace) =>
-    trace.id.toLowerCase().includes(searchQuery.toLowerCase())
+  // Filter threads by agentId if needed
+  const filteredThreads = threads.filter((thread) =>
+    thread.threadId.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -61,7 +69,11 @@ export function RecentTracesTable() {
         </div>
       </div>
 
-      {filteredTraces.length === 0 ? (
+      {isLoading ? (
+        <div className="flex items-center justify-center p-8">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+        </div>
+      ) : filteredThreads.length === 0 ? (
         <EmptyStateSimple
           title="No traces found"
           description={
@@ -87,44 +99,36 @@ export function RecentTracesTable() {
                 <TableHead className="px-6 py-3">TRACE ID</TableHead>
                 <TableHead className="px-6 py-3">TIMESTAMP</TableHead>
                 <TableHead className="px-6 py-3">DURATION</TableHead>
-                <TableHead className="px-6 py-3">TOKENS</TableHead>
+                <TableHead className="px-6 py-3">EVENTS</TableHead>
                 <TableHead className="px-6 py-3 text-right">ACTIONS</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredTraces.map((trace) => (
-                <TableRow 
-                  key={trace.id} 
+              {filteredThreads.map((thread) => (
+                <TableRow
+                  key={thread.threadId}
                   className="hover:bg-surface-2/50 cursor-pointer transition-colors"
-                  onClick={() => router.push(`/agents/${agentId}/traces/${trace.id}`)}
+                  onClick={() => router.push(`/agents/${agentId}/traces/${thread.threadId}`)}
                 >
                   <TableCell className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      {trace.status === "success" && (
-                        <CheckCircle className="h-4 w-4 text-primary" />
-                      )}
-                      {trace.status === "warning" && (
-                        <AlertTriangle className="h-4 w-4 text-warning" />
-                      )}
-                      {trace.status === "error" && (
-                        <AlertCircle className="h-4 w-4 text-destructive" />
-                      )}
+                      <CheckCircle className="h-4 w-4 text-primary" />
                       <span className="capitalize text-sm font-medium text-foreground">
-                        {trace.status}
+                        Active
                       </span>
                     </div>
                   </TableCell>
                   <TableCell className="px-6 py-4 font-mono text-sm text-primary">
-                    {trace.id}
+                    {thread.threadId.substring(0, 16)}...
                   </TableCell>
                   <TableCell className="px-6 py-4 text-sm text-muted-foreground">
-                    {trace.timestamp}
+                    {thread.lastActivity ? formatTimestamp(thread.lastActivity) : "N/A"}
                   </TableCell>
                   <TableCell className="px-6 py-4 text-sm text-foreground">
-                    {trace.duration}
+                    {thread.duration ? formatDuration(thread.duration) : "N/A"}
                   </TableCell>
                   <TableCell className="px-6 py-4 text-sm text-foreground">
-                    {trace.tokens}
+                    {thread.eventCount}
                   </TableCell>
                   <TableCell className="px-6 py-4 text-right">
                     <Button
@@ -150,4 +154,20 @@ export function RecentTracesTable() {
       )}
     </Card>
   );
+}
+
+function formatTimestamp(dateString: string): string {
+  const date = new Date(dateString);
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+  return `${(ms / 60000).toFixed(1)}m`;
 }
