@@ -1,5 +1,5 @@
-import { logger } from '@shared/utils';
 import env, { getTrustedOrigins } from '@whyops/shared/env';
+import { logger } from '@whyops/shared/utils';
 import { betterAuth } from 'better-auth';
 import { createAuthMiddleware } from 'better-auth/api';
 import { magicLink } from 'better-auth/plugins';
