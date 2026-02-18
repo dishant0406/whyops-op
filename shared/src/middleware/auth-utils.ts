@@ -28,41 +28,68 @@ export interface BetterAuthSession {
 
 export async function getSessionFromAuthServer(headers: Headers): Promise<BetterAuthSession | null> {
   const authUrl = env.AUTH_URL.replace(/\/$/, '');
+  const url = `${authUrl}/api/auth/get-session`;
   
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 5000);
 
   try {
-    const response = await fetch(`${authUrl}/api/auth/get-session`, {
+    logger.debug({ url, authUrl }, 'Fetching session from auth service');
+    
+    const response = await fetch(url, {
       method: 'GET',
       headers,
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
 
+    logger.debug({ 
+      status: response.status, 
+      ok: response.ok,
+      url 
+    }, 'Session fetch response');
+
     if (response.ok) {
       const data = await response.json() as BetterAuthSession | null;
       return data;
     }
+    
+    logger.warn({ 
+      status: response.status, 
+      statusText: response.statusText,
+      url 
+    }, 'Session fetch returned non-OK status');
     return null;
   } catch (error) {
     clearTimeout(timeoutId);
-    logger.warn({ error, authUrl }, 'Failed to fetch session from auth service');
+    logger.warn({ error, authUrl, url }, 'Failed to fetch session from auth service');
     return null;
   }
 }
 
 export async function getSessionFromCookie(c: Context): Promise<BetterAuthSession | null> {
+  // Check for both secure (production) and non-secure (development) cookie names
+  const secureSessionToken = getCookie(c, '__Secure-better-auth.session_token');
   const sessionToken = getCookie(c, 'better-auth.session_token');
+  const token = secureSessionToken || sessionToken;
   
-  if (!sessionToken) {
-    return null;
+  // Build headers - forward all cookies if we have them, or use specific cookie
+  const headers = new Headers();
+  
+  if (token) {
+    const cookieName = secureSessionToken ? '__Secure-better-auth.session_token' : 'better-auth.session_token';
+    headers.set('Cookie', `${cookieName}=${token}`);
+  } else {
+    // Fallback: forward all cookies from the original request
+    const cookieHeader = c.req.header('Cookie');
+    if (cookieHeader) {
+      headers.set('Cookie', cookieHeader);
+    } else {
+      return null;
+    }
   }
-
-  const headers = new Headers({
-    'Cookie': `better-auth.session_token=${sessionToken}`,
-    'Content-Type': 'application/json',
-  });
+  
+  headers.set('Content-Type', 'application/json');
 
   return getSessionFromAuthServer(headers);
 }

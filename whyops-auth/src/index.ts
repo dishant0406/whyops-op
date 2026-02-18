@@ -69,6 +69,13 @@ app.use('/api/auth/sign-in/magic-link', magicLinkLimiter);
 app.route('/health', healthRouter);
 app.route('/api/config', configRouter);
 
+// Better Auth handler - must be before session middleware
+// Handles /api/auth/* endpoints like /api/auth/get-session, /api/auth/sign-in, etc.
+app.on(['POST', 'GET'], '/api/auth/*', (c) => {
+  return auth.handler(c.req.raw);
+});
+
+// Custom auth routes (for non-Better-Auth endpoints)
 app.route('/api/auth', authRouter);
 
 if (env.NODE_ENV === 'development') {
@@ -76,14 +83,18 @@ if (env.NODE_ENV === 'development') {
   app.route('/api/dev', devRouter);
 }
 
-app.on(['POST', 'GET'], '/api/auth/*', (c) => {
-  return auth.handler(c.req.raw);
-});
-
+// Session middleware for protected routes (NOT applied to /api/auth/*)
 const sessionMiddleware = createLocalSessionMiddleware(auth);
-app.use('/api/*', sessionMiddleware);
+app.use('/api/projects/*', sessionMiddleware);
+app.use('/api/providers/*', sessionMiddleware);
+app.use('/api/api-keys/*', sessionMiddleware);
+app.use('/api/users/*', sessionMiddleware);
 
-app.use('/api/*', requireSession);
+app.use('/api/projects/*', requireSession);
+app.use('/api/providers/*', requireSession);
+app.use('/api/api-keys/*', requireSession);
+app.use('/api/users/*', requireSession);
+
 app.route('/api/projects', projectsRouter);
 app.route('/api/providers', providersRouter);
 app.route('/api/api-keys', apiKeysRouter);
