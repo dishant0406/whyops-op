@@ -5,6 +5,7 @@ import { Hono } from 'hono';
 import { QueryTypes } from 'sequelize';
 import { z } from 'zod';
 import { EntityService } from '../services/entity.service';
+import { parseInclude } from '../utils/query';
 
 const logger = createServiceLogger('analyse:entities');
 const app = new Hono();
@@ -32,6 +33,11 @@ interface SingleAgentDailySuccessRow {
   day: string;
   totalEvents: string | number;
   errorEvents: string | number;
+}
+
+interface SingleAgentDailyTraceRow {
+  day: string;
+  traceCount: string | number;
 }
 
 async function getEntityMetrics(entityIds: string[]): Promise<Map<string, EntityMetricRow>> {
@@ -201,6 +207,53 @@ async function getSingleAgentDailySuccessPercentage(entityIds: string[], periodD
   return result;
 }
 
+async function getSingleAgentDailyTraceCounts(entityIds: string[], periodDays: number): Promise<Record<string, number>> {
+  const result: Record<string, number> = {};
+
+  if (entityIds.length === 0) {
+    return result;
+  }
+
+  const now = new Date();
+  const since = new Date(now);
+  since.setUTCDate(since.getUTCDate() - (periodDays - 1));
+  since.setUTCHours(0, 0, 0, 0);
+
+  const rows = await Entity.sequelize!.query<SingleAgentDailyTraceRow>(
+    `
+      SELECT
+        TO_CHAR(DATE_TRUNC('day', t.created_at AT TIME ZONE 'UTC'), 'YYYY-MM-DD') AS "day",
+        COUNT(DISTINCT t.id) AS "traceCount"
+      FROM traces t
+      WHERE t.entity_id IN (:entityIds)
+        AND t.created_at >= :since
+      GROUP BY 1
+      ORDER BY 1 ASC
+    `,
+    {
+      replacements: {
+        entityIds,
+        since,
+      },
+      type: QueryTypes.SELECT,
+    }
+  );
+
+  const byDay = new Map<string, number>();
+  for (const row of rows) {
+    byDay.set(row.day, Number(row.traceCount || 0));
+  }
+
+  for (let i = 0; i < periodDays; i++) {
+    const dayDate = new Date(since);
+    dayDate.setUTCDate(since.getUTCDate() + i);
+    const dayKey = dayDate.toISOString().slice(0, 10);
+    result[dayKey] = byDay.get(dayKey) ?? 0;
+  }
+
+  return result;
+}
+
 const entityInitSchema = z.object({
   agentName: z.string().min(1, 'Agent name is required').max(255),
   metadata: z.object({
@@ -268,6 +321,8 @@ app.get('/', async (c) => {
     const count = Math.min(Math.max(parseInt(c.req.query('count') || '20', 10) || 20, 1), 100);
     const page = Math.max(parseInt(c.req.query('page') || '1', 10) || 1, 1);
     const offset = (page - 1) * count;
+    const include = parseInclude(c.req.query('include'));
+    const includeMetadata = include.has('metadata');
 
     const { rows: agents, count: total } = await Agent.findAndCountAll({
       where: {
@@ -322,7 +377,7 @@ app.get('/', async (c) => {
           ? {
               id: latestVersion.id,
               hash: latestVersion.hash,
-              metadata: latestVersion.metadata,
+              metadata: includeMetadata ? latestVersion.metadata : undefined,
               samplingRate: Number(latestVersion.samplingRate),
               createdAt: latestVersion.createdAt.toISOString(),
               updatedAt: latestVersion.updatedAt.toISOString(),
@@ -360,6 +415,12 @@ app.get('/:id', async (c) => {
           Math.max(parseInt(c.req.query('successRatePeriod') || '7', 10) || 7, 1),
           3650
         );
+        const traceCountPeriod = Math.min(
+          Math.max(parseInt(c.req.query('traceCountPeriod') || '7', 10) || 7, 1),
+          3650
+        );
+        const include = parseInclude(c.req.query('include'));
+        const includeMetadata = include.has('metadata');
 
         const id = c.req.param('id');
         const agent = await Agent.findOne({
@@ -383,6 +444,7 @@ app.get('/:id', async (c) => {
         const entityIds = versions.map((version) => version.id);
         const agentMetrics = await getSingleAgentMetrics(entityIds, successRatePeriod);
         const successPercentageByDate = await getSingleAgentDailySuccessPercentage(entityIds, successRatePeriod);
+        const traceCountsByDate = await getSingleAgentDailyTraceCounts(entityIds, traceCountPeriod);
 
         return c.json({
           success: true,
@@ -394,6 +456,8 @@ app.get('/:id', async (c) => {
             traceCount: agentMetrics.traceCount,
             successPercentage: successPercentageByDate,
             successRatePeriod,
+            traceCounts: traceCountsByDate,
+            traceCountPeriod,
             lastActive: agentMetrics.lastActive,
             createdAt: agent.createdAt.toISOString(),
             updatedAt: agent.updatedAt.toISOString(),
@@ -401,7 +465,7 @@ app.get('/:id', async (c) => {
               ? {
                   id: versions[0].id,
                   hash: versions[0].hash,
-                  metadata: versions[0].metadata,
+                  metadata: includeMetadata ? versions[0].metadata : undefined,
                   samplingRate: Number(versions[0].samplingRate),
                   createdAt: versions[0].createdAt.toISOString(),
                   updatedAt: versions[0].updatedAt.toISOString(),
@@ -410,7 +474,7 @@ app.get('/:id', async (c) => {
             versions: versions.map((version) => ({
                 id: version.id,
                 hash: version.hash,
-                metadata: version.metadata,
+                metadata: includeMetadata ? version.metadata : undefined,
                 samplingRate: Number(version.samplingRate),
                 createdAt: version.createdAt.toISOString(),
                 updatedAt: version.updatedAt.toISOString(),

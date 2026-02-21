@@ -40,6 +40,8 @@ export interface EventListFilters {
   providerId?: string;
   limit?: number;
   offset?: number;
+  includeContent?: boolean;
+  includeMetadata?: boolean;
 }
 
 export class EventService {
@@ -239,15 +241,31 @@ export class EventService {
    * List events with filters and pagination
    */
   static async listEvents(filters: EventListFilters) {
-    const { traceId, userId, providerId, limit = 100, offset = 0 } = filters;
+    const { traceId, userId, providerId, limit = 100, offset = 0, includeContent = false, includeMetadata = false } = filters;
 
     const where: any = {};
     if (traceId) where.traceId = traceId;
     if (userId) where.userId = userId;
     if (providerId) where.providerId = providerId;
 
+    const attributes = [
+      'id',
+      'traceId',
+      'spanId',
+      'stepId',
+      'parentStepId',
+      'eventType',
+      'timestamp',
+      'userId',
+      'providerId',
+      'createdAt',
+    ];
+    if (includeContent) attributes.push('content');
+    if (includeMetadata) attributes.push('metadata');
+
     const events = await LLMEvent.findAll({
       where,
+      attributes,
       limit,
       offset,
       order: [['timestamp', 'DESC']],
@@ -269,8 +287,26 @@ export class EventService {
   /**
    * Get event by ID
    */
-  static async getEventById(id: string): Promise<LLMEvent | null> {
-    return LLMEvent.findByPk(id);
+  static async getEventById(id: string, options?: { includeContent?: boolean; includeMetadata?: boolean }): Promise<LLMEvent | null> {
+    const includeContent = options?.includeContent ?? false;
+    const includeMetadata = options?.includeMetadata ?? false;
+
+    const attributes = [
+      'id',
+      'traceId',
+      'spanId',
+      'stepId',
+      'parentStepId',
+      'eventType',
+      'timestamp',
+      'userId',
+      'providerId',
+      'createdAt',
+    ];
+    if (includeContent) attributes.push('content');
+    if (includeMetadata) attributes.push('metadata');
+
+    return LLMEvent.findByPk(id, { attributes });
   }
 
   /**

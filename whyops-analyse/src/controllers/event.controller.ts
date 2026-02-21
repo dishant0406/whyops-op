@@ -1,6 +1,7 @@
 import { createServiceLogger } from '@whyops/shared/logger';
 import { Context } from 'hono';
 import { EventData, EventService } from '../services';
+import { parseInclude } from '../utils/query';
 
 const logger = createServiceLogger('analyse:event-controller');
 
@@ -62,8 +63,9 @@ export class EventController {
       const traceId = c.req.query('traceId') || c.req.query('threadId');
       const userId = c.req.query('userId');
       const providerId = c.req.query('providerId');
-      const limit = parseInt(c.req.query('limit') || '100');
-      const offset = parseInt(c.req.query('offset') || '0');
+      const limit = Math.min(Math.max(parseInt(c.req.query('limit') || '100', 10) || 100, 1), 200);
+      const offset = Math.max(parseInt(c.req.query('offset') || '0', 10) || 0, 0);
+      const include = parseInclude(c.req.query('include'));
 
       const result = await EventService.listEvents({
         traceId,
@@ -71,6 +73,8 @@ export class EventController {
         providerId,
         limit,
         offset,
+        includeContent: include.has('content'),
+        includeMetadata: include.has('metadata'),
       });
 
       return c.json(result);
@@ -86,7 +90,11 @@ export class EventController {
   static async getEvent(c: Context) {
     try {
       const id = c.req.param('id');
-      const event = await EventService.getEventById(id);
+      const include = parseInclude(c.req.query('include'));
+      const event = await EventService.getEventById(id, {
+        includeContent: include.has('content'),
+        includeMetadata: include.has('metadata'),
+      });
 
       if (!event) {
         return c.json({ error: 'Event not found' }, 404);
