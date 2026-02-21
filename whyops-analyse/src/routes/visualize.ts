@@ -23,6 +23,7 @@ app.get('/:traceId/mermaid', async (c) => {
   try {
     const events = await LLMEvent.findAll({
       where: { traceId },
+      attributes: ['eventType', 'content', 'stepId', 'timestamp'],
       order: [['stepId', 'ASC'], ['timestamp', 'ASC']],
     });
 

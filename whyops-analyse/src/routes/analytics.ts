@@ -1,5 +1,5 @@
 import { createServiceLogger } from '@whyops/shared/logger';
-import { Agent, Entity, LLMEvent, Trace } from '@whyops/shared/models';
+import { Agent, LLMEvent, Trace } from '@whyops/shared/models';
 import { Hono } from 'hono';
 import { Op, QueryTypes } from 'sequelize';
 
@@ -23,6 +23,23 @@ const latencyMsExpr = `
         "metadata"->>'latency_ms',
         "content"->>'latencyMs',
         "content"->>'latency_ms',
+        ''
+      ),
+      '[^0-9.]',
+      '',
+      'g'
+    ),
+    ''
+  )::numeric
+`;
+const latencyMsExprEvents = `
+  NULLIF(
+    REGEXP_REPLACE(
+      COALESCE(
+        e."metadata"->>'latencyMs',
+        e."metadata"->>'latency_ms',
+        e."content"->>'latencyMs',
+        e."content"->>'latency_ms',
         ''
       ),
       '[^0-9.]',
@@ -161,74 +178,83 @@ app.get('/dashboard', async (c) => {
   }
 
   try {
-    // Get all agents for the user
-    const agents = await Agent.findAll({
-      where: {
-        userId: auth.userId,
-        projectId: auth.projectId,
-        environmentId: auth.environmentId,
-      },
-    });
+    const agentCount = Math.min(Math.max(parseInt(c.req.query('agentCount') || '5', 10) || 5, 1), 100);
 
-    const agentIds = agents.map(a => a.id);
+    const baseReplacements = {
+      userId: auth.userId,
+      projectId: auth.projectId,
+      environmentId: auth.environmentId,
+    };
 
-    // Get all entity IDs for these agents
-    const entities = await Entity.findAll({
-      where: { agentId: agentIds },
-      attributes: ['id'],
-    });
+    const agentCountRows = await Agent.sequelize!.query<{ totalAgents: string | number }>(
+      `
+        SELECT COUNT(*) AS "totalAgents"
+        FROM agents a
+        WHERE a.user_id = :userId
+          AND a.project_id = :projectId
+          AND a.environment_id = :environmentId
+      `,
+      {
+        replacements: baseReplacements,
+        type: QueryTypes.SELECT,
+      }
+    );
+    const totalAgents = Number(agentCountRows[0]?.totalAgents || 0);
 
-    const entityIds = entities.map(e => e.id);
-
-    // Get total traces count
-    const totalTraces = await Trace.count({
-      where: { entityId: entityIds },
-    });
-
-    // Get traces in last 24 hours (active traces)
     const oneDayAgo = new Date();
     oneDayAgo.setDate(oneDayAgo.getDate() - 1);
 
-    const activeTraces = await Trace.count({
-      where: {
-        entityId: entityIds,
-        createdAt: { [Op.gte]: oneDayAgo },
-      },
-    });
+    const traceCountRows = await Trace.sequelize!.query<{ totalTraces: string | number; activeTraces: string | number }>(
+      `
+        SELECT
+          COUNT(*) AS "totalTraces",
+          COALESCE(SUM(CASE WHEN t.created_at >= :oneDayAgo THEN 1 ELSE 0 END), 0) AS "activeTraces"
+        FROM traces t
+        JOIN entities e ON e.id = t.entity_id
+        JOIN agents a ON a.id = e.agent_id
+        WHERE a.user_id = :userId
+          AND a.project_id = :projectId
+          AND a.environment_id = :environmentId
+      `,
+      {
+        replacements: {
+          ...baseReplacements,
+          oneDayAgo,
+        },
+        type: QueryTypes.SELECT,
+      }
+    );
+    const totalTraces = Number(traceCountRows[0]?.totalTraces || 0);
+    const activeTraces = Number(traceCountRows[0]?.activeTraces || 0);
 
-    // Get all traces for error calculation
-    const traces = await Trace.findAll({
-      where: { entityId: entityIds },
-      attributes: ['id'],
-    });
-    const traceIds = traces.map(t => t.id);
+    const eventStatsRows = await LLMEvent.sequelize!.query<{ totalEvents: string | number; errorEvents: string | number; avgLatency: string | number | null }>(
+      `
+        SELECT
+          COUNT(e.id) AS "totalEvents",
+          COALESCE(SUM(CASE WHEN e.event_type = 'error' THEN 1 ELSE 0 END), 0) AS "errorEvents",
+          AVG(${latencyMsExprEvents}) AS "avgLatency"
+        FROM trace_events e
+        JOIN traces t ON t.id = e.trace_id
+        JOIN entities en ON en.id = t.entity_id
+        JOIN agents a ON a.id = en.agent_id
+        WHERE a.user_id = :userId
+          AND a.project_id = :projectId
+          AND a.environment_id = :environmentId
+      `,
+      {
+        replacements: baseReplacements,
+        type: QueryTypes.SELECT,
+      }
+    );
 
-    // Calculate error rate from events
-    const totalEvents = await LLMEvent.count({
-      where: { traceId: traceIds },
-    });
-
-    const errorEvents = await LLMEvent.count({
-      where: {
-        traceId: traceIds,
-        eventType: 'error',
-      },
-    });
+    const totalEvents = Number(eventStatsRows[0]?.totalEvents || 0);
+    const errorEvents = Number(eventStatsRows[0]?.errorEvents || 0);
 
     const successRate = totalEvents > 0
       ? Math.round(((totalEvents - errorEvents) / totalEvents) * 1000) / 10
       : 100;
 
-    // Get average latency
-    const latencyStats = await LLMEvent.findOne({
-      attributes: [
-        [LLMEvent.sequelize!.literal(`AVG(${latencyMsExpr})`), 'avgLatency'],
-      ],
-      where: { traceId: traceIds },
-      raw: true,
-    });
-
-    const avgLatencyMs = Number((latencyStats as any)?.avgLatency) || 0;
+    const avgLatencyMs = Number(eventStatsRows[0]?.avgLatency || 0);
     const avgLatency = avgLatencyMs > 1000
       ? `${(avgLatencyMs / 1000).toFixed(1)}s`
       : `${Math.round(avgLatencyMs)}ms`;
@@ -238,28 +264,31 @@ app.get('/dashboard', async (c) => {
     since.setDate(since.getDate() - 6);
     since.setHours(0, 0, 0, 0);
 
-    const dailyRows = traceIds.length > 0
-      ? await LLMEvent.sequelize!.query<DashboardDailySuccessRow>(
-          `
-            SELECT
-              TO_CHAR(DATE_TRUNC('day', e.timestamp AT TIME ZONE 'UTC'), 'YYYY-MM-DD') AS "day",
-              COUNT(*) AS "totalEvents",
-              COALESCE(SUM(CASE WHEN e.event_type = 'error' THEN 1 ELSE 0 END), 0) AS "errorEvents"
-            FROM trace_events e
-            WHERE e.trace_id IN (:traceIds)
-              AND e.timestamp >= :since
-            GROUP BY 1
-            ORDER BY 1 ASC
-          `,
-          {
-            replacements: {
-              traceIds,
-              since,
-            },
-            type: QueryTypes.SELECT,
-          }
-        )
-      : [];
+    const dailyRows = await LLMEvent.sequelize!.query<DashboardDailySuccessRow>(
+      `
+        SELECT
+          TO_CHAR(DATE_TRUNC('day', e.timestamp AT TIME ZONE 'UTC'), 'YYYY-MM-DD') AS "day",
+          COUNT(*) AS "totalEvents",
+          COALESCE(SUM(CASE WHEN e.event_type = 'error' THEN 1 ELSE 0 END), 0) AS "errorEvents"
+        FROM trace_events e
+        JOIN traces t ON t.id = e.trace_id
+        JOIN entities en ON en.id = t.entity_id
+        JOIN agents a ON a.id = en.agent_id
+        WHERE a.user_id = :userId
+          AND a.project_id = :projectId
+          AND a.environment_id = :environmentId
+          AND e.timestamp >= :since
+        GROUP BY 1
+        ORDER BY 1 ASC
+      `,
+      {
+        replacements: {
+          ...baseReplacements,
+          since,
+        },
+        type: QueryTypes.SELECT,
+      }
+    );
 
     const byDay = new Map<string, { total: number; errors: number }>();
     for (const row of dailyRows) {
@@ -285,12 +314,42 @@ app.get('/dashboard', async (c) => {
       });
     }
 
+    const agentUsageRows = await Agent.sequelize!.query<{ name: string; traceCount: string | number }>(
+      `
+        SELECT
+          a.name AS "name",
+          COUNT(DISTINCT t.id) AS "traceCount"
+        FROM agents a
+        LEFT JOIN entities e ON e.agent_id = a.id
+        LEFT JOIN traces t ON t.entity_id = e.id
+        WHERE a.user_id = :userId
+          AND a.project_id = :projectId
+          AND a.environment_id = :environmentId
+        GROUP BY a.id
+        ORDER BY COUNT(DISTINCT t.id) DESC
+        LIMIT :agentCount
+      `,
+      {
+        replacements: {
+          ...baseReplacements,
+          agentCount,
+        },
+        type: QueryTypes.SELECT,
+      }
+    );
+
+    const agentsUsage: Record<string, number> = {};
+    for (const row of agentUsageRows) {
+      agentsUsage[row.name] = Number(row.traceCount || 0);
+    }
+
     return c.json({
-      totalAgents: agents.length,
+      totalAgents,
       activeTraces,
       successRate,
       avgLatency,
       timeline: timelineData,
+      agentsUsage,
     });
   } catch (error: any) {
     logger.error({ error }, 'Failed to fetch dashboard stats');
