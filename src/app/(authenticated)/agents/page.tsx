@@ -3,6 +3,7 @@
 import { useEffect, useCallback } from "react";
 
 import { AgentsTable } from "@/components/agents/agents-table";
+import { AgentUsagePieChart } from "@/components/agents/agent-usage-pie-chart";
 import { StatCard } from "@/components/agents/stat-card";
 import { SuccessRateChart } from "@/components/agents/success-rate-chart";
 import { EmptyState } from "@/components/dashboard/empty-state";
@@ -26,7 +27,16 @@ export default function AgentsPage() {
     fetchAgents
   } = useAgentsStore();
   const { initialAgents } = useAgentsContext();
-  const { stats, chartData, fetchDashboardStats, setApiKey: setDashboardApiKey } = useDashboardStore();
+  const {
+    stats,
+    chartData,
+    agentUsage,
+    agentUsageCount,
+    isLoading: isDashboardLoading,
+    fetchDashboardStats,
+    setAgentUsageCount,
+    setApiKey: setDashboardApiKey,
+  } = useDashboardStore();
   const config = useConfigStore((state) => state.config);
 
   // Use initial agents from server, then fall back to store
@@ -49,7 +59,7 @@ export default function AgentsPage() {
           setApiKey(parsed.state.apiKey);
           setDashboardApiKey(parsed.state.apiKey);
         }
-      } catch (e) {
+      } catch {
         // Ignore parse errors
       }
     }
@@ -59,7 +69,7 @@ export default function AgentsPage() {
     if (config?.analyseBaseUrl) {
       fetchDashboardStats();
     }
-  }, [config?.analyseBaseUrl, fetchDashboardStats]);
+  }, [config?.analyseBaseUrl, fetchDashboardStats, agentUsageCount]);
 
   const handlePageChange = useCallback((page: number) => {
     fetchAgents(page, pagination.count);
@@ -68,6 +78,10 @@ export default function AgentsPage() {
   const handleCountChange = useCallback((count: number) => {
     fetchAgents(1, count);
   }, [fetchAgents]);
+
+  const handleAgentUsageCountChange = useCallback((count: number) => {
+    setAgentUsageCount(count);
+  }, [setAgentUsageCount]);
 
   useEffect(() => {
     if (config?.analyseBaseUrl) {
@@ -147,7 +161,19 @@ export default function AgentsPage() {
       </div>
 
       {/* Chart */}
-      <SuccessRateChart data={chartData} />
+      <div className="flex flex-col gap-6 lg:flex-row">
+        <div className="w-full lg:w-[320px] xl:w-[360px]">
+          <AgentUsagePieChart
+            data={agentUsage}
+            agentCount={agentUsageCount}
+            onAgentCountChange={handleAgentUsageCountChange}
+            isLoading={isDashboardLoading}
+          />
+        </div>
+        <div className="w-full lg:flex-1">
+          <SuccessRateChart data={chartData} />
+        </div>
+      </div>
 
       {/* Agents Table */}
       <AgentsTable

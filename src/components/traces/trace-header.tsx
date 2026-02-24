@@ -3,6 +3,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { TraceDetail } from "@/stores/traceDetailStore";
+import { calculateTraceCost, formatCostUsd, getPrimaryCostRate } from "@/lib/trace-cost";
+import { formatDuration } from "@/lib/trace-format";
 import { cn } from "@/lib/utils";
 import {
   Bug,
@@ -18,18 +20,24 @@ interface TraceHeaderProps {
   trace: TraceDetail;
   view: "graph" | "timeline";
   onViewChange: (view: "graph" | "timeline") => void;
+  agentId?: string;
 }
 
-export function TraceHeader({ trace, view, onViewChange }: TraceHeaderProps) {
+export function TraceHeader({ trace, view, onViewChange, agentId }: TraceHeaderProps) {
   // Calculate status from error count
   const hasErrors = trace.errorCount > 0;
   const status = hasErrors ? "error" : "success";
 
-  // Format duration
   const duration = formatDuration(trace.duration);
 
-  // Calculate cost (placeholder - would come from backend)
-  const cost = "$0.00";
+  const pricing = getPrimaryCostRate(trace.cost ?? null);
+  const { total } = calculateTraceCost(trace.events ?? [], pricing);
+  const cost = formatCostUsd(total);
+  const agentHref = agentId
+    ? `/agents/${agentId}`
+    : trace.entityId
+      ? `/agents/${trace.entityId}`
+      : "/agents";
 
   return (
     <div className="flex h-14 items-center justify-between border-b border-border/30 bg-background px-4">
@@ -44,7 +52,7 @@ export function TraceHeader({ trace, view, onViewChange }: TraceHeaderProps) {
           </Link>
           <span className="mx-2 text-border">/</span>
           <Link
-            href={`/agents/${trace.entityId}`}
+            href={agentHref}
             className="hover:text-foreground transition-colors"
           >
             {trace.entityName || "Agent"}
@@ -131,10 +139,4 @@ export function TraceHeader({ trace, view, onViewChange }: TraceHeaderProps) {
       </div>
     </div>
   );
-}
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(2)}s`;
-  return `${(ms / 60000).toFixed(1)}m`;
 }

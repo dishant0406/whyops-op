@@ -18,6 +18,16 @@ export interface TraceEvent {
   isLateEvent?: boolean;
 }
 
+export interface TraceCostRate {
+  id: string;
+  model: string;
+  inputTokenPricePerMillionToken: number;
+  outputTokenPricePerMillionToken: number;
+  cachedTokenPricePerMillionToken: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface TraceDetail {
   threadId: string;
   userId: string;
@@ -37,6 +47,7 @@ export interface TraceDetail {
   errorCount: number;
   events: TraceEvent[];
   hasLateEvents: boolean;
+  cost?: TraceCostRate[];
 }
 
 interface TraceDetailState {
@@ -72,7 +83,7 @@ export const useTraceDetailStore = create<TraceDetailState>()(
 
         try {
           const response = await apiClient.get<TraceDetail>(
-            `${config.analyseBaseUrl}/threads/${traceId}`,
+            `${config.analyseBaseUrl}/threads/${traceId}?include=systemPrompt,tools,metadata,content&eventInclude=metadata,content`,
             {
               headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
             }

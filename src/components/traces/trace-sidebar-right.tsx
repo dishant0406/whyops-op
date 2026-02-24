@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { JsonViewer } from "@/components/ui/json-viewer";
 import type { TraceDetail } from "@/stores/traceDetailStore";
 import { cn } from "@/lib/utils";
 import {
@@ -56,6 +57,8 @@ export function TraceSidebarRight({ trace, isCollapsed, onToggle }: TraceSidebar
       case "tool_call":
         return "bg-amber-500/20 text-amber-400 border-amber-500/30";
       case "tool_call_response":
+        return "bg-green-500/20 text-green-400 border-green-500/30";
+      case "tool_result":
         return "bg-green-500/20 text-green-400 border-green-500/30";
       case "error":
         return "bg-red-500/20 text-red-400 border-red-500/30";
@@ -161,20 +164,12 @@ export function TraceSidebarRight({ trace, isCollapsed, onToggle }: TraceSidebar
                           </Button>
                         </div>
                         <div className="rounded bg-surface-2/50 p-2 max-h-32 overflow-y-auto">
-                          {event.content.text && (
-                            <p className="text-xs text-foreground whitespace-pre-wrap">{event.content.text}</p>
-                          )}
-                          {event.content.name && (
-                            <div className="text-xs">
-                              <span className="text-muted-foreground">Tool: </span>
-                              <span className="font-mono text-foreground">{event.content.name}</span>
-                              {event.content.arguments && (
-                                <pre className="mt-1 text-xs text-muted-foreground whitespace-pre-wrap">
-                                  {JSON.stringify(event.content.arguments, null, 2)}
-                                </pre>
-                              )}
-                            </div>
-                          )}
+                          <JsonViewer
+                            value={typeof event.content === "string"
+                              ? event.content
+                              : JSON.stringify(event.content, null, 2)}
+                            variant="compact"
+                          />
                         </div>
                       </div>
                     )}
@@ -184,6 +179,22 @@ export function TraceSidebarRight({ trace, isCollapsed, onToggle }: TraceSidebar
                       <div>
                         <label className="text-xs font-medium text-muted-foreground mb-1 block">Metadata</label>
                         <div className="rounded bg-surface-2/50 p-2 max-h-40 overflow-y-auto">
+                          {/* Tool name for tool_call_response */}
+                          {event.metadata.tool && (
+                            <div className="text-xs mb-2">
+                              <span className="text-muted-foreground">Tool: </span>
+                              <span className="font-mono text-foreground">{event.metadata.tool}</span>
+                            </div>
+                          )}
+
+                          {/* Total records for tool_call_response */}
+                          {event.metadata.totalRecords !== undefined && (
+                            <div className="text-xs mb-2">
+                              <span className="text-muted-foreground">Total Records: </span>
+                              <span className="text-foreground">{event.metadata.totalRecords}</span>
+                            </div>
+                          )}
+
                           {/* Model & Provider */}
                           {(event.metadata.model || event.metadata.provider) && (
                             <div className="flex items-center gap-2 mb-2">
@@ -229,6 +240,11 @@ export function TraceSidebarRight({ trace, isCollapsed, onToggle }: TraceSidebar
                               <span className="text-foreground">{event.metadata.latencyMs}ms</span>
                             </div>
                           )}
+
+                          <JsonViewer
+                            value={JSON.stringify(event.metadata, null, 2)}
+                            variant="compact"
+                          />
                         </div>
                       </div>
                     )}

@@ -3,6 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { TraceDetail } from "@/stores/traceDetailStore";
+import { formatDuration } from "@/lib/trace-format";
 import { getModelsUsed, getToolsUsed, getTraceEventStats } from "@/lib/trace-utils";
 import { cn } from "@/lib/utils";
 import {
@@ -165,7 +166,9 @@ export function TraceSidebarLeft({ trace, isCollapsed, onToggle }: TraceSidebarL
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground">Duration</label>
-                  <p className="text-lg font-semibold text-foreground">{trace.duration}ms</p>
+                  <p className="text-lg font-semibold text-foreground">
+                    {formatDuration(trace.duration)}
+                  </p>
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground">LLM Calls</label>

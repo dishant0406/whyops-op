@@ -17,15 +17,33 @@ export async function proxy(request: NextRequest) {
   const cookie = request.headers.get("cookie") ?? "";
   const normalizedBaseUrl = authBaseUrl.replace(/\/$/, "");
 
-  const sessionResponse = await fetch(`${normalizedBaseUrl}/api/auth/get-session`, {
-    method: "GET",
-    headers: {
-      cookie,
-    },
-    cache: "no-store",
-  });
+  let sessionResponse: Response | null = null;
+  interface SessionPayload {
+    session?: unknown;
+    user?: unknown;
+    [key: string]: unknown;
+  }
+  let sessionPayload: SessionPayload | null = null;
 
-  const sessionPayload = sessionResponse.ok ? await sessionResponse.json() : null;
+  try {
+    sessionResponse = await fetch(`${normalizedBaseUrl}/api/auth/get-session`, {
+      method: "GET",
+      headers: {
+        cookie,
+      },
+      cache: "no-store",
+    });
+
+    if (sessionResponse.ok) {
+      sessionPayload = await sessionResponse.json();
+    }
+  } catch (err) {
+    console.error("proxy: failed to fetch session from auth service", err);
+    // If the auth service is unreachable, allow the request to continue instead of throwing.
+    // Treat as no session so that public routes still work and private routes won't crash the app.
+    sessionResponse = null;
+    sessionPayload = null;
+  }
   const hasSession = Boolean(sessionPayload?.session || sessionPayload?.user);
 
   if (!hasSession && !isPublicRoute(pathname)) {
@@ -38,15 +56,34 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const userResponse = await fetch(`${normalizedBaseUrl}/api/users/me`, {
-    method: "GET",
-    headers: {
-      cookie,
-    },
-    cache: "no-store",
-  });
+  let userResponse: Response | null = null;
+  interface UserPayload {
+    data?: {
+      onboardingComplete?: boolean;
+      [key: string]: unknown;
+    };
+    onboardingComplete?: boolean;
+    [key: string]: unknown;
+  }
+  let userPayload: UserPayload | null = null;
 
-  const userPayload = userResponse.ok ? await userResponse.json() : null;
+  try {
+    userResponse = await fetch(`${normalizedBaseUrl}/api/users/me`, {
+      method: "GET",
+      headers: {
+        cookie,
+      },
+      cache: "no-store",
+    });
+
+    if (userResponse.ok) {
+      userPayload = await userResponse.json();
+    }
+  } catch (err) {
+    console.error("proxy: failed to fetch user from auth service", err);
+    userResponse = null;
+    userPayload = null;
+  }
   const onboardingComplete = Boolean(userPayload?.data?.onboardingComplete ?? userPayload?.onboardingComplete);
 
   if (!onboardingComplete && pathname !== "/onboarding") {

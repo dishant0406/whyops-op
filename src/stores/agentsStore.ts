@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+import { DEFAULT_TIMELINE_PERIOD } from "@/constants/agent-timelines";
 import { apiClient } from "@/lib/api-client";
 import { useConfigStore } from "./configStore";
 import type { Agent, AgentsResponse, Pagination, SingleAgentResponse } from "@/types/global";
@@ -18,7 +19,12 @@ interface AgentsState {
   setApiKey: (key: string) => void;
   setInitialAgents: (agents: Agent[]) => void;
   fetchAgents: (page?: number, count?: number) => Promise<void>;
-  fetchAgentById: (agentId: string, successRatePeriod?: number, isRefetch?: boolean) => Promise<Agent | null>;
+  fetchAgentById: (
+    agentId: string,
+    successRatePeriod?: number,
+    traceCountPeriod?: number,
+    isRefetch?: boolean
+  ) => Promise<Agent | null>;
   startPolling: (intervalMs: number) => void;
   stopPolling: () => void;
 }
@@ -78,7 +84,12 @@ export const useAgentsStore = create<AgentsState>()(
         }
       },
 
-      fetchAgentById: async (agentId: string, successRatePeriod = 7, isRefetch = false) => {
+      fetchAgentById: async (
+        agentId: string,
+        successRatePeriod = DEFAULT_TIMELINE_PERIOD,
+        traceCountPeriod = DEFAULT_TIMELINE_PERIOD,
+        isRefetch = false
+      ) => {
         const config = useConfigStore.getState().config;
         const { apiKey } = get();
 
@@ -94,7 +105,7 @@ export const useAgentsStore = create<AgentsState>()(
             `${config.analyseBaseUrl}/entities/${agentId}`,
             {
               headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
-              params: { successRatePeriod },
+              params: { successRatePeriod, traceCountPeriod },
             }
           );
           set({ currentAgent: response.data, isLoading: false, isRefetching: false });

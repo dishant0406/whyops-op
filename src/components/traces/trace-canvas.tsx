@@ -1,5 +1,6 @@
 "use client";
 
+import dagre from "dagre";
 import { useMemo } from "react";
 
 import {
@@ -13,11 +14,12 @@ import {
   ToolResultNode,
   UserInputNode,
 } from "@/components/traces/custom-nodes";
+import { calculateTraceCost, getPrimaryCostRate } from "@/lib/trace-cost";
 import { convertEventsToNodesAndEdges } from "@/lib/trace-utils";
 import type { TraceDetail } from "@/stores/traceDetailStore";
 import {
   Background,
-  Controls, Edge, MarkerType, Node, ReactFlow
+  Edge, MarkerType, Node, ReactFlow
 } from "reactflow";
 import "reactflow/dist/style.css";
 
@@ -57,8 +59,33 @@ export function TraceCanvas({ trace }: TraceCanvasProps) {
     if (!trace.events || trace.events.length === 0) {
       return { nodes: [] as Node[], edges: [] as Edge[] };
     }
-    return convertEventsToNodesAndEdges(trace.events);
-  }, [trace.events]);
+    const filteredEvents = trace.events.map((event) => {
+      //if content is array remove content with role system
+      if (Array.isArray(event.content)) {
+        return {
+          ...event,
+          content: event.content.filter((c) => c.role !== "system"),
+        };
+      }
+      return event;
+    });
+    const pricing = getPrimaryCostRate(trace.cost ?? null);
+    const { perEvent } = calculateTraceCost(filteredEvents, pricing);
+    const enrichedEvents = filteredEvents.map((event) => {
+      const cost = perEvent.get(event.id);
+      if (!cost) return event;
+      return {
+        ...event,
+        metadata: {
+          ...(event.metadata ?? {}),
+          costUsd: cost,
+        },
+      };
+    });
+    const convertedData = convertEventsToNodesAndEdges(enrichedEvents);
+    const layoutedNodes = applyAutoLayout(convertedData.nodes, convertedData.edges);
+    return { nodes: layoutedNodes, edges: convertedData.edges };
+  }, [trace.events, trace.cost]);
 
   if (!trace.events || trace.events.length === 0) {
     return (
@@ -82,8 +109,70 @@ export function TraceCanvas({ trace }: TraceCanvasProps) {
         maxZoom={1.5}
       >
         <Background color="var(--border)" gap={20} size={1} />
-        <Controls className="bg-surface-2 border-border/50 text-foreground fill-foreground" />
       </ReactFlow>
     </div>
   );
+}
+
+const NODE_DIMENSIONS: Record<string, { width: number; height: number }> = {
+  start: { width: 120, height: 60 },
+  end: { width: 80, height: 80 },
+  userInput: { width: 260, height: 150 },
+  llmResponse: { width: 300, height: 140 },
+  decision: { width: 300, height: 140 },
+  toolCall: { width: 300, height: 180 },
+  toolResult: { width: 300, height: 180 },
+  error: { width: 260, height: 140 },
+  rejected: { width: 260, height: 140 },
+};
+
+function applyAutoLayout(nodes: Node[], edges: Edge[]): Node[] {
+  const graph = new dagre.graphlib.Graph();
+  graph.setDefaultEdgeLabel(() => ({}));
+  graph.setGraph({
+    rankdir: "TB",
+    nodesep: 40,
+    ranksep: 80,
+    marginx: 20,
+    marginy: 20,
+  });
+
+  nodes.forEach((node) => {
+    const fallback = NODE_DIMENSIONS[node.type ?? ""] || { width: 240, height: 140 };
+    const width = typeof node.width === "number"
+      ? node.width
+      : (typeof node.style?.width === "number" ? node.style.width : fallback.width);
+    const height = typeof node.height === "number"
+      ? node.height
+      : (typeof node.style?.height === "number" ? node.style.height : fallback.height);
+    graph.setNode(node.id, { width, height });
+  });
+
+  edges.forEach((edge) => {
+    graph.setEdge(edge.source, edge.target);
+  });
+
+  dagre.layout(graph);
+
+  return nodes.map((node) => {
+    const fallback = NODE_DIMENSIONS[node.type ?? ""] || { width: 240, height: 140 };
+    const width = typeof node.width === "number"
+      ? node.width
+      : (typeof node.style?.width === "number" ? node.style.width : fallback.width);
+    const height = typeof node.height === "number"
+      ? node.height
+      : (typeof node.style?.height === "number" ? node.style.height : fallback.height);
+    const positionedNode = graph.node(node.id) as { x: number; y: number } | undefined;
+    if (!positionedNode) {
+      return node;
+    }
+
+    return {
+      ...node,
+      position: {
+        x: positionedNode.x - width / 2,
+        y: positionedNode.y - height / 2,
+      },
+    };
+  });
 }

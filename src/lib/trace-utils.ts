@@ -1,115 +1,26 @@
 import type { Node, Edge, MarkerType } from "reactflow";
 
 import type { TraceEvent } from "@/stores/traceDetailStore";
+import { eventHandlerRegistry, type CanvasNodeData, type SidebarData, type TimelineData, type TraceNodeDataBase } from "./trace-events";
 
-/**
- * Configuration for node type mapping
- * Extend this to add more event types or customize node types
- */
-interface NodeTypeConfig {
-  /** React Flow node type */
-  nodeType: string;
-  /** Display label for the node */
-  label: string;
-  /** Whether this node type should be highlighted */
+export type { CanvasNodeData, SidebarData, TimelineData };
+
+export interface TraceNodeData extends TraceNodeDataBase {
+  contentText?: string;
+  contentPreview?: string;
+  truncated?: boolean;
+  nodeType?: string;
   highlight?: boolean;
 }
 
-/**
- * Configuration for event type to node type mapping
- * Add new event types here to customize how they're rendered
- */
-const EVENT_TYPE_CONFIG: Record<string, NodeTypeConfig> = {
-  user_message: {
-    nodeType: "userInput",
-    label: "User Input",
-    highlight: true,
-  },
-  llm_response: {
-    nodeType: "llmResponse",
-    label: "LLM Response",
-    highlight: true,
-  },
-  tool_call: {
-    nodeType: "toolCall",
-    label: "Tool Call",
-    highlight: true,
-  },
-  tool_call_request: {
-    nodeType: "toolCall",
-    label: "Tool Request",
-    highlight: true,
-  },
-  tool_call_response: {
-    nodeType: "toolResult",
-    label: "Tool Result",
-    highlight: false,
-  },
-  error: {
-    nodeType: "error",
-    label: "Error",
-    highlight: true,
-  },
-  agent_message: {
-    nodeType: "llmResponse",
-    label: "Agent Message",
-    highlight: true,
-  },
-  system_message: {
-    nodeType: "start",
-    label: "System",
-    highlight: false,
-  },
-};
-
-/**
- * Default node configuration for unknown event types
- */
-const DEFAULT_NODE_CONFIG: NodeTypeConfig = {
-  nodeType: "default",
-  label: "Event",
-  highlight: false,
-};
-
-/**
- * Node data structure for trace events
- */
-export interface TraceNodeData {
-  label: string;
-  eventType: string;
-  content: TraceEvent["content"];
-  metadata: TraceEvent["metadata"];
-  stepId: number;
-  parentStepId: number | null;
-  spanId: string | null;
-  timestamp: string;
-  duration: number | null;
-  timeSinceStart: number;
-  isLateEvent: boolean;
-  contentText?: string;
-  metadataSummary?: Record<string, unknown>;
-  [key: string]: unknown;
-}
-
-/**
- * Options for converting trace events to nodes and edges
- */
 export interface ConvertTraceOptions {
-  /** Vertical spacing between nodes */
   nodeSpacing?: number;
-  /** Starting X position for nodes */
   startX?: number;
-  /** Starting Y position for nodes */
   startY?: number;
-  /** Custom edge options */
   edgeOptions?: Partial<Pick<Edge, "type" | "style" | "markerEnd">>;
-  /** Custom node width */
   nodeWidth?: number;
 }
 
-/**
- * Default conversion options
- */
 const DEFAULT_OPTIONS: Required<ConvertTraceOptions> = {
   nodeSpacing: 150,
   startX: 250,
@@ -128,71 +39,6 @@ const DEFAULT_OPTIONS: Required<ConvertTraceOptions> = {
   nodeWidth: 200,
 };
 
-/**
- * Get node configuration for an event type
- * Can be extended to support custom event types
- */
-function getNodeConfig(eventType: string): NodeTypeConfig {
-  return EVENT_TYPE_CONFIG[eventType] || DEFAULT_NODE_CONFIG;
-}
-
-/**
- * Extract content text from an event for display
- */
-function extractContentText(content: TraceEvent["content"]): string {
-  if (!content) return "";
-
-  if (typeof content === "string") return content;
-
-  if (content.text) return content.text;
-
-  // Tool call - show tool name and arguments
-  if (content.name) {
-    if (content.arguments) {
-      try {
-        const args = JSON.stringify(content.arguments);
-        return `${content.name}(${args})`;
-      } catch {
-        return content.name;
-      }
-    }
-    return content.name;
-  }
-
-  return JSON.stringify(content);
-}
-
-/**
- * Extract metadata summary for display
- */
-function extractMetadataSummary(metadata: TraceEvent["metadata"]): Record<string, unknown> {
-  if (!metadata) return {};
-
-  // Extract common fields for display
-  const summary: Record<string, unknown> = {};
-
-  if (metadata.model) summary.model = metadata.model;
-  if (metadata.provider) summary.provider = metadata.provider;
-  if (metadata.providerSlug) summary.provider = metadata.providerSlug;
-  if (metadata.usage) summary.usage = metadata.usage;
-  if (metadata.latencyMs) summary.latency = `${metadata.latencyMs}ms`;
-  if (metadata.tool_id) summary.toolId = metadata.tool_id;
-
-  return summary;
-}
-
-/**
- * Convert trace events to React Flow nodes and edges
- *
- * This function is scalable - to add new event types or customize node behavior:
- * 1. Add the event type to EVENT_TYPE_CONFIG above
- * 2. Add a corresponding node component in custom-nodes.tsx
- * 3. Register the node type in trace-canvas.tsx
- *
- * @param events - Array of trace events from the API
- * @param options - Optional configuration for the conversion
- * @returns Object containing nodes and edges for React Flow
- */
 export function convertEventsToNodesAndEdges(
   events: TraceEvent[],
   options: ConvertTraceOptions = {}
@@ -205,72 +51,322 @@ export function convertEventsToNodesAndEdges(
     return { nodes, edges };
   }
 
-  // Sort events by timestamp to ensure proper ordering
   const sortedEvents = [...events].sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   );
 
-  // Create a map for quick lookup of events by stepId
   const eventsByStepId = new Map<number, TraceEvent>();
   sortedEvents.forEach((event) => {
     eventsByStepId.set(event.stepId, event);
   });
 
-  // Track which stepIds we've already created nodes for
-  const processedStepIds = new Set<number>();
+  const displayedEvents = sortedEvents.filter((event) => eventHandlerRegistry.shouldDisplay(event));
+  const displayedIndexById = new Map<string, number>();
+  displayedEvents.forEach((event, index) => {
+    displayedIndexById.set(event.id, index);
+  });
+  let lastVisibleEventId: string | null = null;
+  let lastNonToolEventId: string | null = null;
+  let lastLlmResponseId: string | null = null;
+  const pendingToolCallsByName = new Map<string, string[]>();
+  const toolCallRequestById = new Map<string, string>();
+  const toolCallResponseById = new Map<string, string>();
+  const toolCallRequestsByParent = new Map<number, string[]>();
+  const toolCallResponsesByParent = new Map<number, string[]>();
 
-  // Process each event
-  sortedEvents.forEach((event, index) => {
-    if (processedStepIds.has(event.stepId)) {
-      return;
+  const getToolName = (event: TraceEvent): string | null => {
+    if (event.metadata && typeof event.metadata === "object" && "tool" in event.metadata) {
+      return event.metadata.tool as string;
     }
-    processedStepIds.add(event.stepId);
+    if (event.content && typeof event.content === "object" && "name" in event.content) {
+      return event.content.name as string;
+    }
+    return null;
+  };
 
-    const config = getNodeConfig(event.eventType);
-    const yPosition = opts.startY + index * opts.nodeSpacing;
+  const getToolCallId = (event: TraceEvent): string | null => {
+    if (event.content && typeof event.content === "object") {
+      if ("id" in event.content && typeof event.content.id === "string") {
+        return event.content.id;
+      }
+      if ("tool_call_id" in event.content && typeof event.content.tool_call_id === "string") {
+        return event.content.tool_call_id;
+      }
+    }
+    if (event.metadata && typeof event.metadata === "object") {
+      if ("tool_call_id" in event.metadata && typeof event.metadata.tool_call_id === "string") {
+        return event.metadata.tool_call_id;
+      }
+      if ("toolCallId" in event.metadata && typeof event.metadata.toolCallId === "string") {
+        return event.metadata.toolCallId;
+      }
+    }
+    return null;
+  };
 
-    // Create node data
-    const nodeData: TraceNodeData = {
-      label: config.label,
-      eventType: event.eventType,
-      content: event.content,
-      metadata: event.metadata,
-      stepId: event.stepId,
-      parentStepId: event.parentStepId ?? null,
-      spanId: event.spanId ?? null,
-      timestamp: event.timestamp,
-      duration: event.duration ?? null,
-      timeSinceStart: event.timeSinceStart ?? 0,
-      isLateEvent: event.isLateEvent ?? false,
-      // Additional extracted data for display
-      contentText: extractContentText(event.content),
-      metadataSummary: extractMetadataSummary(event.metadata),
+  const getToolCallIdsFromContent = (event: TraceEvent): string[] => {
+    if (Array.isArray(event.content)) {
+      return event.content
+        .map((item) =>
+          item && typeof item === "object" && "tool_call_id" in item
+            ? (item.tool_call_id as string)
+            : null
+        )
+        .filter((id): id is string => typeof id === "string");
+    }
+    const single = getToolCallId(event);
+    return single ? [single] : [];
+  };
+
+  const getToolNamesFromToolResultContent = (event: TraceEvent): string[] => {
+    const toolNames = new Set<string>();
+    const visited = new Set<unknown>();
+    const MAX_DEPTH = 6;
+    const MAX_STRING_LENGTH = 120;
+    const MAX_ITEMS = 4000;
+    let scannedItems = 0;
+
+    const addCandidate = (value: string) => {
+      if (!value) return;
+      if (value.length > MAX_STRING_LENGTH) return;
+      if (/\s/.test(value)) return;
+      toolNames.add(value);
     };
 
-    // Create the node
+    const scanValue = (value: unknown, depth: number) => {
+      if (scannedItems > MAX_ITEMS) return;
+      if (depth > MAX_DEPTH) return;
+      if (value === null || value === undefined) return;
+
+      if (typeof value === "string") {
+        scannedItems += 1;
+        const trimmed = value.trim();
+        if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            scanValue(parsed, depth + 1);
+          } catch {
+            addCandidate(trimmed);
+          }
+        } else {
+          addCandidate(trimmed);
+        }
+        return;
+      }
+
+      if (typeof value !== "object") {
+        return;
+      }
+
+      if (visited.has(value)) return;
+      visited.add(value);
+
+      if (Array.isArray(value)) {
+        value.forEach((item) => scanValue(item, depth + 1));
+        return;
+      }
+
+      Object.entries(value as Record<string, unknown>).forEach(([key, entry]) => {
+        scannedItems += 1;
+        addCandidate(key);
+        scanValue(entry, depth + 1);
+      });
+    };
+
+    scanValue(event.content, 0);
+
+    if (toolNames.size === 0) {
+      const fallbackName = getToolName(event);
+      if (fallbackName) {
+        toolNames.add(fallbackName);
+      }
+    }
+
+    return Array.from(toolNames);
+  };
+
+  displayedEvents.forEach((event) => {
+    if (event.eventType === "tool_call_request") {
+      const toolCallId = getToolCallId(event);
+      if (toolCallId) {
+        toolCallRequestById.set(toolCallId, event.id);
+      }
+      if (event.parentStepId) {
+        const bucket = toolCallRequestsByParent.get(event.parentStepId) ?? [];
+        bucket.push(event.id);
+        toolCallRequestsByParent.set(event.parentStepId, bucket);
+      }
+    }
+    if (event.eventType === "tool_call_response") {
+      const toolCallId = getToolCallId(event);
+      if (toolCallId) {
+        toolCallResponseById.set(toolCallId, event.id);
+      }
+      if (event.parentStepId) {
+        const bucket = toolCallResponsesByParent.get(event.parentStepId) ?? [];
+        bucket.push(event.id);
+        toolCallResponsesByParent.set(event.parentStepId, bucket);
+      }
+    }
+  });
+
+  displayedEvents.forEach((event, index) => {
+    const canvasData = eventHandlerRegistry.getCanvasData(event);
+    const yPosition = opts.startY + index * opts.nodeSpacing;
+
+    const nodeData: TraceNodeData = {
+      ...canvasData,
+    };
+
     const node: Node<TraceNodeData> = {
       id: event.id,
-      type: config.nodeType,
+      type: canvasData.nodeType,
       position: { x: opts.startX, y: yPosition },
       data: nodeData,
     };
 
     nodes.push(node);
 
-    // Create edge from parent or start node
-    if (event.parentStepId && eventsByStepId.has(event.parentStepId)) {
-      const parentEvent = eventsByStepId.get(event.parentStepId)!;
+    let sourceIds: string[] = [];
 
-      edges.push({
-        id: `e-${parentEvent.id}-${event.id}`,
-        source: parentEvent.id,
-        target: event.id,
-        type: opts.edgeOptions.type,
-        style: opts.edgeOptions.style,
-        markerEnd: opts.edgeOptions.markerEnd,
+    if (event.eventType === "tool_call_request") {
+      const toolName = getToolName(event);
+      if (toolName) {
+        const pending = pendingToolCallsByName.get(toolName) ?? [];
+        pending.push(event.id);
+        pendingToolCallsByName.set(toolName, pending);
+      }
+      sourceIds = [lastLlmResponseId || lastNonToolEventId || lastVisibleEventId].filter(
+        (value): value is string => Boolean(value)
+      );
+    } else if (event.eventType === "tool_call_response") {
+      const toolName = getToolName(event);
+      if (toolName) {
+        const pending = pendingToolCallsByName.get(toolName);
+        if (pending && pending.length > 0) {
+          const candidate = pending.shift() ?? null;
+          if (candidate && (displayedIndexById.get(candidate) ?? -1) < index) {
+            sourceIds = [candidate];
+          }
+        }
+      }
+      if (sourceIds.length === 0 && lastVisibleEventId) {
+        sourceIds = [lastVisibleEventId];
+      }
+    } else if (event.eventType === "tool_result") {
+      const toolCallIds = getToolCallIdsFromContent(event);
+      const toolNames = getToolNamesFromToolResultContent(event);
+      const matchedSourceIds = new Set<string>();
+      toolCallIds.forEach((toolCallId) => {
+        const responseId = toolCallResponseById.get(toolCallId);
+        if (responseId) {
+          matchedSourceIds.add(responseId);
+          return;
+        }
+        const requestId = toolCallRequestById.get(toolCallId);
+        if (requestId) {
+          matchedSourceIds.add(requestId);
+        }
       });
-    } else if (index === 0) {
-      // First node connects to start
+      if (matchedSourceIds.size > 0) {
+        sourceIds = Array.from(matchedSourceIds);
+      } else {
+        if (toolNames.length > 0) {
+          const responseMatches: string[] = [];
+          const requestMatches: string[] = [];
+          for (let i = index - 1; i >= 0; i -= 1) {
+            const previousEvent = displayedEvents[i];
+            if (previousEvent.eventType === "tool_result") {
+              break;
+            }
+            if (
+              previousEvent.eventType !== "tool_call_response" &&
+              previousEvent.eventType !== "tool_call_request"
+            ) {
+              continue;
+            }
+            const previousToolName = getToolName(previousEvent);
+            if (!previousToolName || !toolNames.includes(previousToolName)) {
+              continue;
+            }
+            if (previousEvent.eventType === "tool_call_response") {
+              responseMatches.push(previousEvent.id);
+            } else {
+              requestMatches.push(previousEvent.id);
+            }
+          }
+
+          if (responseMatches.length > 0) {
+            sourceIds = responseMatches.reverse();
+          } else if (requestMatches.length > 0) {
+            sourceIds = requestMatches.reverse();
+          }
+        }
+
+        if (event.parentStepId) {
+          const responseIds = toolCallResponsesByParent.get(event.parentStepId) ?? [];
+          if (sourceIds.length === 0 && responseIds.length > 0) {
+            sourceIds = responseIds;
+          } else {
+            const requestIds = toolCallRequestsByParent.get(event.parentStepId) ?? [];
+            if (sourceIds.length === 0 && requestIds.length > 0) {
+              sourceIds = requestIds;
+            }
+          }
+        }
+
+        if (sourceIds.length === 0) {
+          let parentEvent: TraceEvent | undefined;
+          if (event.parentStepId && eventsByStepId.has(event.parentStepId)) {
+            parentEvent = eventsByStepId.get(event.parentStepId);
+          }
+          if (parentEvent && parentEvent.id !== event.id) {
+            const parentIndex = displayedIndexById.get(parentEvent.id) ?? -1;
+            if (parentIndex > -1 && parentIndex < index) {
+              sourceIds = [parentEvent.id];
+            } else if (lastVisibleEventId) {
+              sourceIds = [lastVisibleEventId];
+            }
+          } else if (lastVisibleEventId) {
+            sourceIds = [lastVisibleEventId];
+          }
+        }
+      }
+    } else {
+      let parentEvent: TraceEvent | undefined;
+      if (event.parentStepId && eventsByStepId.has(event.parentStepId)) {
+        parentEvent = eventsByStepId.get(event.parentStepId);
+      }
+      if (parentEvent && parentEvent.id !== event.id) {
+        const parentIndex = displayedIndexById.get(parentEvent.id) ?? -1;
+        if (parentIndex > -1 && parentIndex < index) {
+          sourceIds = [parentEvent.id];
+        } else if (lastVisibleEventId) {
+          sourceIds = [lastVisibleEventId];
+        }
+      } else if (lastVisibleEventId) {
+        sourceIds = [lastVisibleEventId];
+      }
+    }
+
+    const dedupedSourceIds = Array.from(new Set(sourceIds));
+    const validSourceIds = dedupedSourceIds.filter((sourceId) => {
+      const sourceIndex = displayedIndexById.get(sourceId) ?? -1;
+      return sourceIndex > -1 && sourceIndex < index;
+    });
+
+    if (validSourceIds.length > 0) {
+      validSourceIds.forEach((sourceId) => {
+        edges.push({
+          id: `e-${sourceId}-${event.id}`,
+          source: sourceId,
+          target: event.id,
+          type: opts.edgeOptions.type,
+          style: opts.edgeOptions.style,
+          markerEnd: opts.edgeOptions.markerEnd,
+        });
+      });
+    } else {
       nodes.unshift({
         id: "start",
         type: "start",
@@ -299,10 +395,23 @@ export function convertEventsToNodesAndEdges(
         markerEnd: opts.edgeOptions.markerEnd,
       });
     }
+
+    if (event.eventType === "llm_response") {
+      lastLlmResponseId = event.id;
+    }
+    if (
+      event.eventType !== "tool_call_request" &&
+      event.eventType !== "tool_call_response" &&
+      event.eventType !== "tool_result"
+    ) {
+      lastNonToolEventId = event.id;
+    }
+    lastVisibleEventId = event.id;
   });
 
-  // Add end node
-  const lastEvent = sortedEvents[sortedEvents.length - 1];
+  const lastEvent = lastVisibleEventId
+    ? displayedEvents.find((event) => event.id === lastVisibleEventId)
+    : undefined;
   if (lastEvent) {
     nodes.push({
       id: "end",
@@ -336,9 +445,14 @@ export function convertEventsToNodesAndEdges(
   return { nodes, edges };
 }
 
-/**
- * Get statistics from trace events
- */
+export function getEventSidebarData(event: TraceEvent): SidebarData {
+  return eventHandlerRegistry.getSidebarData(event);
+}
+
+export function getEventTimelineData(event: TraceEvent): TimelineData {
+  return eventHandlerRegistry.getTimelineData(event);
+}
+
 export function getTraceEventStats(events: TraceEvent[]): {
   totalEvents: number;
   llmCalls: number;
@@ -359,6 +473,7 @@ export function getTraceEventStats(events: TraceEvent[]): {
   events.forEach((event) => {
     switch (event.eventType) {
       case "llm_response":
+      case "agent_message":
         stats.llmCalls++;
         if (event.metadata?.usage?.totalTokens) {
           stats.totalTokens += event.metadata.usage.totalTokens;
@@ -370,6 +485,7 @@ export function getTraceEventStats(events: TraceEvent[]): {
       case "tool_call":
       case "tool_call_request":
       case "tool_call_response":
+      case "tool_result":
         stats.toolCalls++;
         break;
       case "error":
@@ -381,9 +497,6 @@ export function getTraceEventStats(events: TraceEvent[]): {
   return stats;
 }
 
-/**
- * Group events by type for display
- */
 export function groupEventsByType(
   events: TraceEvent[]
 ): Record<string, TraceEvent[]> {
@@ -400,9 +513,6 @@ export function groupEventsByType(
   return groups;
 }
 
-/**
- * Get unique models used in trace events
- */
 export function getModelsUsed(events: TraceEvent[]): string[] {
   const models = new Set<string>();
 
@@ -411,7 +521,6 @@ export function getModelsUsed(events: TraceEvent[]): string[] {
       models.add(event.metadata.model);
     }
     if (event.metadata?.providerSlug) {
-      // Create a slug format for provider/model
       models.add(`${event.metadata.providerSlug}/${event.metadata.model}`);
     }
   });
@@ -419,17 +528,19 @@ export function getModelsUsed(events: TraceEvent[]): string[] {
   return Array.from(models);
 }
 
-/**
- * Get unique tools used in trace events
- */
 export function getToolsUsed(events: TraceEvent[]): string[] {
   const tools = new Set<string>();
 
   events.forEach((event) => {
-    if (event.eventType === "tool_call" && event.content?.name) {
-      tools.add(event.content.name);
+    if (event.eventType === "tool_call_request" && event.content && typeof event.content === "object" && "name" in event.content) {
+      tools.add(event.content.name as string);
+    }
+    if (event.metadata?.tool) {
+      tools.add(event.metadata.tool as string);
     }
   });
 
   return Array.from(tools);
 }
+
+export { eventHandlerRegistry };

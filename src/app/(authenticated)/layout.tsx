@@ -1,13 +1,15 @@
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Sidebar } from "@/components/layout/sidebar";
 import { ConfigProvider } from "@/components/providers/config-provider";
+import { cookies } from "next/headers";
 
 export default async function AuthenticatedLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const defaultCollapsed = false;
+  const serverCookies = await cookies()
+  const defaultCollapsed = serverCookies.get('sidebar:state')?.value === 'true';
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">

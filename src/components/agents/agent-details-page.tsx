@@ -5,8 +5,10 @@ import { useParams } from "next/navigation";
 
 import { AgentDetailHeader } from "@/components/agents/agent-detail-header";
 import { AgentDetailStats } from "@/components/agents/agent-detail-stats";
+import { AgentTraceCountTimeline } from "@/components/agents/agent-trace-count-timeline";
 import { AgentTraceTimeline } from "@/components/agents/agent-trace-timeline";
 import { RecentTracesTable } from "@/components/agents/recent-traces-table";
+import { DEFAULT_TIMELINE_PERIOD } from "@/constants/agent-timelines";
 import { useAgentsStore } from "@/stores/agentsStore";
 import { useConfigStore } from "@/stores/configStore";
 
@@ -14,21 +16,51 @@ export function AgentDetailsPage() {
   const params = useParams();
   const agentId = params.agentId as string;
 
-  const { fetchAgentById, currentAgent, isLoading, isRefetching } = useAgentsStore();
+  const { fetchAgentById, currentAgent, isLoading } = useAgentsStore();
   const config = useConfigStore((state) => state.config);
   const [error, setError] = useState<string | null>(null);
+  const [successRatePeriod, setSuccessRatePeriod] = useState(DEFAULT_TIMELINE_PERIOD);
+  const [traceCountPeriod, setTraceCountPeriod] = useState(DEFAULT_TIMELINE_PERIOD);
+  const [isSuccessRateLoading, setIsSuccessRateLoading] = useState(false);
+  const [isTraceCountLoading, setIsTraceCountLoading] = useState(false);
 
   useEffect(() => {
     if (config?.analyseBaseUrl && agentId) {
-      fetchAgentById(agentId, 7).catch((err) => {
+      fetchAgentById(
+        agentId,
+        DEFAULT_TIMELINE_PERIOD,
+        DEFAULT_TIMELINE_PERIOD
+      ).catch((err) => {
         setError(err instanceof Error ? err.message : "Failed to load agent");
       });
     }
   }, [config?.analyseBaseUrl, agentId, fetchAgentById]);
 
-  const handlePeriodChange = (period: number) => {
+  const handleSuccessRatePeriodChange = (period: number) => {
     if (agentId) {
-      fetchAgentById(agentId, period, true);
+      setSuccessRatePeriod(period);
+      setIsSuccessRateLoading(true);
+      fetchAgentById(agentId, period, traceCountPeriod, true)
+        .catch((err) => {
+          setError(err instanceof Error ? err.message : "Failed to load agent");
+        })
+        .finally(() => {
+          setIsSuccessRateLoading(false);
+        });
+    }
+  };
+
+  const handleTraceCountPeriodChange = (period: number) => {
+    if (agentId) {
+      setTraceCountPeriod(period);
+      setIsTraceCountLoading(true);
+      fetchAgentById(agentId, successRatePeriod, period, true)
+        .catch((err) => {
+          setError(err instanceof Error ? err.message : "Failed to load agent");
+        })
+        .finally(() => {
+          setIsTraceCountLoading(false);
+        });
     }
   };
 
@@ -54,12 +86,24 @@ export function AgentDetailsPage() {
     <div className="space-y-6 p-8">
       <AgentDetailHeader agent={currentAgent} />
       <AgentDetailStats agent={currentAgent} />
-      <AgentTraceTimeline
-        successPercentage={currentAgent.successPercentage as Record<string, number> | undefined}
-        successRatePeriod={currentAgent.successRatePeriod}
-        onPeriodChange={handlePeriodChange}
-        isLoading={isRefetching}
-      />
+      <div className="flex flex-col gap-6 lg:flex-row">
+        <div className="w-full lg:flex-1">
+          <AgentTraceTimeline
+            successPercentage={currentAgent.successPercentage as Record<string, number> | undefined}
+            successRatePeriod={successRatePeriod}
+            onPeriodChange={handleSuccessRatePeriodChange}
+            isLoading={isSuccessRateLoading || isLoading}
+          />
+        </div>
+        <div className="w-full lg:flex-1">
+          <AgentTraceCountTimeline
+            traceCounts={currentAgent.traceCounts as Record<string, number> | undefined}
+            traceCountPeriod={traceCountPeriod}
+            onPeriodChange={handleTraceCountPeriodChange}
+            isLoading={isTraceCountLoading || isLoading}
+          />
+        </div>
+      </div>
       <RecentTracesTable agentId={agentId} />
     </div>
   );

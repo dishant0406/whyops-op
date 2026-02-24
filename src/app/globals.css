@@ -154,6 +154,41 @@
   .shadow-panel {
     box-shadow: 0 2vw 5vw rgba(3, 12, 11, 0.7);
   }
+
+  .json-viewer {
+    background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 0.5rem;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    font-family: var(--font-body), var(--font-mono, ui-monospace);
+    color: var(--foreground);
+  }
+
+  .json-viewer :where(.w-rjv) {
+    background: transparent !important;
+    color: var(--foreground);
+  }
+
+  .json-viewer :where(.w-rjv-row) {
+    padding: 0.15rem 0;
+  }
+
+  .json-viewer :where(.w-rjv-type) {
+    opacity: 0.7;
+  }
+
+  .json-viewer-compact {
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-size: 0.7rem;
+  }
+
+  .json-viewer-compact :where(.w-rjv-row) {
+    padding: 0.1rem 0;
+  }
 }
 
 input:-webkit-autofill,

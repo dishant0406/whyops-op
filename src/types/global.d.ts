@@ -23,6 +23,8 @@ export interface Agent {
   traceCount: number;
   successPercentage: number | Record<string, number>;
   successRatePeriod?: number;
+  traceCounts?: Record<string, number>;
+  traceCountPeriod?: number;
   lastActive: string;
   createdAt: string;
   updatedAt: string;
@@ -54,6 +56,8 @@ export interface SingleAgentResponse {
   traceCount: number;
   successPercentage: Record<string, number>;
   successRatePeriod: number;
+  traceCounts: Record<string, number>;
+  traceCountPeriod: number;
   lastActive: string;
   createdAt: string;
   updatedAt: string;

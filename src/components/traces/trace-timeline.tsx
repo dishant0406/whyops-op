@@ -1,7 +1,8 @@
 "use client";
 
-import type { TraceDetail } from "@/stores/traceDetailStore";
 import { useParams } from "next/navigation";
+import type { TraceDetail } from "@/stores/traceDetailStore";
+import { formatDuration } from "@/lib/trace-format";
 
 interface TraceTimelineProps {
   trace: TraceDetail;
@@ -46,7 +47,7 @@ export function TraceTimeline({ trace }: TraceTimelineProps) {
               </p>
               {event.duration && (
                 <p className="text-xs text-muted-foreground">
-                  Duration: {formatDuration(event.duration)}
+                  Duration: {formatDurationMs(event.duration)}
                 </p>
               )}
             </div>
@@ -69,6 +70,8 @@ function getEventTypeLabel(eventType: string): string {
       return "Tool Request";
     case "tool_call_response":
       return "Tool Response";
+    case "tool_result":
+      return "Tool Result";
     case "error":
       return "Error";
     default:
@@ -77,6 +80,9 @@ function getEventTypeLabel(eventType: string): string {
 }
 
 function getEventDescription(event: any): string {
+  if (Array.isArray(event.content)) {
+    return `Tool results (${event.content.length})`;
+  }
   if (event.content?.content) {
     const content = event.content.content;
     if (typeof content === "string") {
@@ -98,8 +104,6 @@ function formatTimestamp(timestamp: string): string {
   });
 }
 
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${(ms / 60000).toFixed(1)}m`;
+function formatDurationMs(ms: number): string {
+  return formatDuration(ms);
 }
