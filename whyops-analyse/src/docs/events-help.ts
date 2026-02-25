@@ -5,6 +5,7 @@ export const eventsHelp = {
   supportedEventTypes: [
     'user_message',
     'llm_response',
+    'llm_thinking',
     'tool_call',
     'tool_call_request',
     'tool_call_response',
@@ -78,6 +79,23 @@ export const eventsHelp = {
       metadata: {
         required: ['model', 'provider'],
         optional: ['usage', 'latencyMs', 'providerSlug'],
+      },
+    },
+    llm_thinking: {
+      description: 'Model thinking/reasoning trace (for providers that emit thinking blocks).',
+      requiredFields: ['eventType', 'traceId', 'agentName'],
+      optionalFields: ['content', 'metadata', 'timestamp', 'stepId', 'parentStepId', 'spanId', 'idempotencyKey'],
+      content: {
+        expected: 'Object containing the thinking block or redacted thinking.',
+        shape: {
+          type: "'thinking' | 'redacted_thinking'",
+          thinking: 'string (when type=thinking)',
+          signature: 'string (when type=thinking)',
+          data: 'string (when type=redacted_thinking)',
+        },
+      },
+      metadata: {
+        optional: ['model', 'provider'],
       },
     },
     tool_call: {

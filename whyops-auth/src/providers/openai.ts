@@ -54,10 +54,10 @@ export async function testProvider(input: ProviderTestInput): Promise<ProviderTe
     }
 
     const jsonData = await response.json();
-    const data = jsonData as { choices?: Array<{ message?: { content?: string } }> };
+    const data = jsonData as { choices?: Array<{ message?: { content?: string; reasoning?: string } }> };
 
     // Verify we got a valid response with content
-    if (!data.choices || !data.choices[0]?.message?.content) {
+    if (!data.choices || (!data.choices[0]?.message?.content && !data.choices[0]?.message?.reasoning)) {
       return {
         success: false,
         message: 'Invalid response format from OpenAI',

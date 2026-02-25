@@ -12,6 +12,10 @@ export interface ParsedResponse {
     completionTokens: number;
     totalTokens: number;
   };
+  thinkingBlocks?: Array<
+    | { type: 'thinking'; thinking: string; signature?: string }
+    | { type: 'redacted_thinking'; data: string }
+  >;
   id?: string;
   created?: number;
 }
@@ -23,11 +27,25 @@ export class AnthropicParser {
   static parseResponse(data: AnthropicMessageResponse): ParsedResponse {
     let content = '';
     const toolCalls: any[] = [];
+    const thinkingBlocks: ParsedResponse['thinkingBlocks'] = [];
 
     if (Array.isArray(data.content)) {
       for (const block of data.content) {
         if (block.type === 'text' && (block as any).text) {
           content += (block as any).text;
+        }
+        if (block.type === 'thinking') {
+          thinkingBlocks?.push({
+            type: 'thinking',
+            thinking: (block as any).thinking || '',
+            signature: (block as any).signature,
+          });
+        }
+        if (block.type === 'redacted_thinking') {
+          thinkingBlocks?.push({
+            type: 'redacted_thinking',
+            data: (block as any).data || '',
+          });
         }
         if (block.type === 'tool_use' || block.type === 'server_tool_use') {
           const input = (block as any).input ?? {};
@@ -47,6 +65,7 @@ export class AnthropicParser {
       content: content || undefined,
       toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
       finishReason: data.stop_reason || undefined,
+      thinkingBlocks: thinkingBlocks && thinkingBlocks.length > 0 ? thinkingBlocks : undefined,
       usage: data.usage ? {
         promptTokens: data.usage.input_tokens,
         completionTokens: data.usage.output_tokens,
@@ -64,7 +83,8 @@ export class AnthropicParser {
   static parseStreamEvent(
     data: AnthropicStreamEvent,
     accumulated: ParsedResponse,
-    toolCallState?: Map<number, any>
+    toolCallState?: Map<number, any>,
+    thinkingState?: Map<number, any>
   ): ParsedResponse {
     const result: ParsedResponse = { ...accumulated };
 
@@ -96,6 +116,18 @@ export class AnthropicParser {
           if (toolCallState) toolCallState.set(index, toolCall);
           result.toolCalls = Array.from(toolCallState?.values() || [toolCall]);
         }
+        if (data.content_block?.type === 'thinking') {
+          const index = data.index ?? 0;
+          if (thinkingState) {
+            thinkingState.set(index, { type: 'thinking', thinking: '', signature: '' });
+          }
+        }
+        if (data.content_block?.type === 'redacted_thinking') {
+          const index = data.index ?? 0;
+          if (thinkingState) {
+            thinkingState.set(index, { type: 'redacted_thinking', data: (data.content_block as any).data || '' });
+          }
+        }
         break;
 
       case 'content_block_delta':
@@ -103,10 +135,20 @@ export class AnthropicParser {
           result.content = (result.content || '') + data.delta.text;
         }
         if (data.delta?.type === 'thinking_delta') {
-          // ignore for now (can be added to metadata later)
+          const index = data.index ?? 0;
+          const existing = thinkingState?.get(index);
+          if (existing && existing.type === 'thinking') {
+            existing.thinking = (existing.thinking || '') + data.delta.thinking;
+            thinkingState?.set(index, existing);
+          }
         }
         if (data.delta?.type === 'signature_delta') {
-          // ignore for now
+          const index = data.index ?? 0;
+          const existing = thinkingState?.get(index);
+          if (existing && existing.type === 'thinking') {
+            existing.signature = data.delta.signature;
+            thinkingState?.set(index, existing);
+          }
         }
         if (data.delta?.type === 'input_json_delta') {
           const index = data.index ?? 0;
@@ -116,6 +158,9 @@ export class AnthropicParser {
             toolCallState?.set(index, existing);
             result.toolCalls = Array.from(toolCallState?.values());
           }
+        }
+        if (thinkingState) {
+          result.thinkingBlocks = Array.from(thinkingState.values());
         }
         break;
 
@@ -152,6 +197,7 @@ export class AnthropicParser {
       toolCalls: undefined,
       finishReason: undefined,
       usage: undefined,
+      thinkingBlocks: undefined,
     };
   }
 }

@@ -19,41 +19,125 @@ import { SseEventDecoder } from '../services/sse';
 const logger = createServiceLogger('proxy:openai');
 const app = new Hono();
 
-function determineOpenAIRequestEventType(messages: any[] | undefined): 'user_message' | 'tool_call_response' {
+const RESPONSES_ITEM_CACHE_TTL_MS = 30 * 60 * 1000;
+const RESPONSES_ITEM_CACHE_MAX_TRACES = 1000;
+const responsesItemCacheByTraceId = new Map<string, { updatedAt: number; items: Map<string, any> }>();
+
+function getResponsesItemCache(traceId: string) {
+  const now = Date.now();
+
+  if (responsesItemCacheByTraceId.size > RESPONSES_ITEM_CACHE_MAX_TRACES) {
+    for (const [key, value] of responsesItemCacheByTraceId.entries()) {
+      if (now - value.updatedAt > RESPONSES_ITEM_CACHE_TTL_MS) {
+        responsesItemCacheByTraceId.delete(key);
+      }
+    }
+    while (responsesItemCacheByTraceId.size > RESPONSES_ITEM_CACHE_MAX_TRACES) {
+      const oldestKey = responsesItemCacheByTraceId.keys().next().value as string | undefined;
+      if (!oldestKey) break;
+      responsesItemCacheByTraceId.delete(oldestKey);
+    }
+  }
+
+  const existing = responsesItemCacheByTraceId.get(traceId);
+  if (existing) {
+    if (now - existing.updatedAt > RESPONSES_ITEM_CACHE_TTL_MS) {
+      responsesItemCacheByTraceId.delete(traceId);
+    } else {
+      return existing;
+    }
+  }
+  const created = { updatedAt: now, items: new Map<string, any>() };
+  responsesItemCacheByTraceId.set(traceId, created);
+  return created;
+}
+
+function cacheResponsesOutputItems(traceId: string, outputItems: any[] | undefined) {
+  if (!traceId || !Array.isArray(outputItems) || outputItems.length === 0) return;
+  const cache = getResponsesItemCache(traceId);
+  for (const item of outputItems) {
+    if (!item || typeof item !== 'object' || typeof item.id !== 'string') continue;
+    cache.items.set(item.id, item);
+  }
+  cache.updatedAt = Date.now();
+}
+
+function sanitizeCachedOutputItemForInput(item: any): any | null {
+  if (!item || typeof item !== 'object') return null;
+  if (item.type === 'function_call') {
+    return {
+      type: 'function_call',
+      name: item.name,
+      call_id: item.call_id ?? item.id,
+      arguments: item.arguments,
+    };
+  }
+  if (item.type === 'message') {
+    return {
+      type: 'message',
+      role: item.role,
+      content: item.content,
+    };
+  }
+  return null;
+}
+
+function determineOpenAIRequestEventType(messages: any[] | undefined): 'user_message' | 'tool_result' {
   if (!messages || !Array.isArray(messages)) return 'user_message';
 
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];
     const role = msg?.role;
     if (role === 'system') continue;
-    if (role === 'tool' || role === 'function') return 'tool_call_response';
+    if (role === 'tool' || role === 'function') return 'tool_result';
     return 'user_message';
   }
 
   return 'user_message';
 }
 
-function determineResponsesRequestEventType(input: OpenAIResponsesRequest['input']): 'user_message' | 'tool_call_response' {
+function determineResponsesRequestEventType(input: OpenAIResponsesRequest['input']): 'user_message' | 'tool_result' {
   if (!input || typeof input === 'string') return 'user_message';
   if (!Array.isArray(input)) return 'user_message';
 
   for (let i = input.length - 1; i >= 0; i--) {
     const msg = input[i] as any;
-    if (msg?.type === 'function_call_output') return 'tool_call_response';
+    if (msg?.type === 'function_call_output') return 'tool_result';
     const role = msg?.role;
     if (role === 'system') continue;
-    if (role === 'tool') return 'tool_call_response';
+    if (role === 'tool') return 'tool_result';
     return 'user_message';
   }
 
   return 'user_message';
 }
 
-function normalizeResponsesInput(input: OpenAIResponsesRequest['input']): OpenAIResponsesRequest['input'] {
+function normalizeResponsesInput(
+  input: OpenAIResponsesRequest['input'],
+  traceId?: string,
+): OpenAIResponsesRequest['input'] {
   if (!input || typeof input === 'string' || !Array.isArray(input)) return input;
 
-  return input.map((item: any) => {
+  const cache = traceId ? getResponsesItemCache(traceId) : undefined;
+  const normalized = input.map((item: any) => {
     if (!item || typeof item !== 'object') return item;
+
+    if (item.type === 'item_reference') {
+      // Compatibility layer: some OpenAI-compatible providers reject item_reference
+      // but accept explicit function_call/message items.
+      const refId = typeof item.id === 'string' ? item.id : undefined;
+      if (cache && refId) {
+        const cachedItem = cache.items.get(refId);
+        const expanded = sanitizeCachedOutputItemForInput(cachedItem);
+        if (expanded) return expanded;
+      }
+      return null;
+    }
+
+    if (item.type === 'message' && item.role && item.content !== undefined) {
+      const { role, content } = item;
+      return { type: 'message', role, content };
+    }
 
     // Normalize function_call items missing call_id (some providers only return id)
     if (item.type === 'function_call') {
@@ -93,6 +177,8 @@ function normalizeResponsesInput(input: OpenAIResponsesRequest['input']): OpenAI
 
     return item;
   });
+
+  return normalized.filter((item: any) => item !== null && item !== undefined) as OpenAIResponsesRequest['input'];
 }
 
 function summarizeResponsesInput(input: OpenAIResponsesRequest['input']) {
@@ -235,6 +321,7 @@ async function trackResponsesStream(
   const sseDecoder = new SseEventDecoder();
   let accumulatedState = OpenAIParser.getInitialStreamState();
   const toolCallState = new Map<string, any>();
+  const observedOutputItems = new Map<string, any>();
 
   try {
     while (true) {
@@ -251,6 +338,13 @@ async function trackResponsesStream(
 
         try {
           const parsed = JSON.parse(data) as OpenAIResponsesStreamEvent;
+          if (
+            (parsed.type === 'response.output_item.added' || parsed.type === 'response.output_item.done')
+            && parsed.item
+            && typeof (parsed.item as any).id === 'string'
+          ) {
+            observedOutputItems.set((parsed.item as any).id, parsed.item);
+          }
           accumulatedState = OpenAIParser.parseResponsesStreamChunk(parsed, accumulatedState, toolCallState);
         } catch {
           // Ignore malformed chunks for analytics only path
@@ -263,11 +357,20 @@ async function trackResponsesStream(
       if (data === '[DONE]') continue;
       try {
         const parsed = JSON.parse(data) as OpenAIResponsesStreamEvent;
+        if (
+          (parsed.type === 'response.output_item.added' || parsed.type === 'response.output_item.done')
+          && parsed.item
+          && typeof (parsed.item as any).id === 'string'
+        ) {
+          observedOutputItems.set((parsed.item as any).id, parsed.item);
+        }
         accumulatedState = OpenAIParser.parseResponsesStreamChunk(parsed, accumulatedState, toolCallState);
       } catch {
         // Ignore malformed chunks for analytics only path
       }
     }
+
+    cacheResponsesOutputItems(traceId, Array.from(observedOutputItems.values()));
 
     dispatchAnalyseEvent(apiKey, {
       traceId,
@@ -669,18 +772,16 @@ app.post('/responses', async (c) => {
   }
   requestBody.model = actualModel;
   const originalInput = requestBody.input;
-  const normalizedInput = normalizeResponsesInput(requestBody.input);
-  requestBody.input = normalizedInput;
   
   // 1. Try to find traceId from Headers
   let traceId = c.req.header('X-Trace-ID') || c.req.header('X-Thread-ID');
 
   // 2. If not found, try to extract hidden signature from the last assistant message in 'input'
   // The 'input' field in /responses can be a string (prompt) or an array (conversation history)
-  if (!traceId && requestBody.input && Array.isArray(requestBody.input)) {
+  if (!traceId && originalInput && Array.isArray(originalInput)) {
     // Iterate backwards to find the last assistant message
-    for (let i = requestBody.input.length - 1; i >= 0; i--) {
-      const item = requestBody.input[i];
+    for (let i = originalInput.length - 1; i >= 0; i--) {
+      const item = originalInput[i];
       // Skip non-message items (e.g. reasoning blocks)
       if (item.type && item.type !== 'message') continue;
 
@@ -718,6 +819,9 @@ app.post('/responses', async (c) => {
   if (!traceId) {
     traceId = generateThreadId();
   }
+
+  const normalizedInput = normalizeResponsesInput(originalInput, traceId);
+  requestBody.input = normalizedInput;
 
   // Generate a distinct span ID for this interaction request
   const requestSpanId = generateSpanId();
@@ -883,6 +987,8 @@ app.post('/responses', async (c) => {
         });
         return c.json(responseData, response.status as any);
       }
+
+      cacheResponsesOutputItems(traceId, responseData.output);
 
       // Inject signature into response content
       // Logic for /responses structure: output[].content[].text
