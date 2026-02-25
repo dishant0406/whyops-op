@@ -59,10 +59,10 @@ export function ApiKeysPanel({ className }: ApiKeysPanelProps) {
 
   return (
     <div className={cn("space-y-6", className)}>
-      <div className="rounded-xl border border-border/50 bg-card p-6">
+      <div className="rounded-sm border border-border/50 bg-card p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold text-foreground">{SETTINGS_COPY.apiKeysTitle}</h2>
+            <h2 className="text-base font-semibold text-foreground">{SETTINGS_COPY.apiKeysTitle}</h2>
             <p className="mt-1 text-sm text-muted-foreground">{SETTINGS_COPY.apiKeysSubtitle}</p>
           </div>
         </div>
@@ -75,7 +75,7 @@ export function ApiKeysPanel({ className }: ApiKeysPanelProps) {
             className="py-10"
           />
         ) : (
-          <div className="mt-6 overflow-hidden rounded-lg border border-border/40">
+          <div className="mt-5 overflow-hidden rounded-sm border border-border/50">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -93,7 +93,7 @@ export function ApiKeysPanel({ className }: ApiKeysPanelProps) {
                       {key.name}
                     </TableCell>
                     <TableCell className="py-4">
-                      <code className="rounded-md bg-surface-2 px-2 py-1 text-xs font-mono text-foreground/80">
+                      <code className="rounded-sm border border-border/40 bg-surface-2/50 px-2 py-1 text-xs font-mono text-foreground/80">
                         {renderKeyValue(key)}
                       </code>
                     </TableCell>
@@ -122,9 +122,9 @@ export function ApiKeysPanel({ className }: ApiKeysPanelProps) {
         )}
       </div>
 
-      <div className="rounded-xl border border-border/50 bg-card p-6">
+      <div className="rounded-sm border border-border/50 bg-card p-5">
         <div>
-          <h3 className="text-base font-semibold text-foreground">{SETTINGS_COPY.endpointsTitle}</h3>
+          <h3 className="text-sm font-semibold text-foreground">{SETTINGS_COPY.endpointsTitle}</h3>
           <p className="mt-1 text-sm text-muted-foreground">{SETTINGS_COPY.endpointsSubtitle}</p>
         </div>
 
@@ -170,10 +170,10 @@ function EndpointCard({ label, description, value }: EndpointCardProps) {
   };
 
   return (
-    <div className="rounded-lg border border-border/50 bg-surface-2/60 p-4">
+    <div className="rounded-sm border border-border/50 bg-surface-2/30 p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-foreground">{label}</p>
+          <p className="text-sm font-medium text-foreground">{label}</p>
           <p className="text-xs text-muted-foreground">{description}</p>
         </div>
         <Button variant="outline" size="sm" onClick={handleCopy} disabled={value === "-"}>

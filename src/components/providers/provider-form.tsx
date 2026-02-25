@@ -178,7 +178,7 @@ export function ProviderForm({
 
   if (!config) {
     return (
-      <div className="flex items-center justify-center p-8">
+      <div className="flex items-center justify-center p-6">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -257,7 +257,7 @@ export function ProviderForm({
         onChange={(e) => handleInputChange("apiKey", e.target.value)}
         iconRight={
           <button
-            className="text-muted-foreground/70 hover:text-foreground transition-colors"
+            className="text-muted-foreground/70 transition-colors hover:text-foreground"
             onClick={() => setShowPassword(!showPassword)}
             type="button"
           >
@@ -266,10 +266,11 @@ export function ProviderForm({
         }
       />
 
-      <div className="flex flex-col gap-3 sm:flex-row">
+      <div className="flex flex-col gap-2.5 sm:flex-row">
         <Button
           type="button"
           variant="outline"
+          size="sm"
           onClick={handleTestConnection}
           disabled={!canTest || testStatus === "testing"}
           className="flex-1"
@@ -289,6 +290,7 @@ export function ProviderForm({
 
         <Button
           type="button"
+          size="sm"
           onClick={handleAddProvider}
           disabled={!canCreate || isCreating}
           className="flex-1"

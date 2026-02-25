@@ -23,24 +23,25 @@ export function DashboardHeader({ className, ...props }: DashboardHeaderProps) {
   return (
     <header
       className={cn(
-        "flex items-center justify-between border-b border-border/50 bg-background px-6 py-3",
+        "flex h-14 items-center justify-between border-b border-border/50 bg-background px-6",
         className
       )}
       {...props}
     >
-      {/* Navigation Tabs */}
-      <nav className="flex items-center gap-1">
+      <nav className="flex items-center gap-1.5">
         {navItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive =
+            pathname === item.href ||
+            (item.href !== "/" && pathname.startsWith(`${item.href}/`));
           return (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
-                "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+                "rounded-sm border px-3 py-1.5 text-sm font-medium transition-colors",
                 isActive
-                  ? "bg-primary/10 text-primary"
-                  : "text-foreground/70 hover:bg-surface-2 hover:text-foreground"
+                  ? "border-border bg-card text-foreground"
+                  : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-surface-2/50 hover:text-foreground"
               )}
             >
               {item.label}
@@ -49,10 +50,9 @@ export function DashboardHeader({ className, ...props }: DashboardHeaderProps) {
         })}
       </nav>
 
-      {/* Right Side Actions */}
       <div className="flex items-center gap-3">
         <button
-          className="grid h-9 w-9 place-items-center rounded-lg text-foreground/70 transition-colors hover:bg-surface-2 hover:text-foreground"
+          className="grid h-8 w-8 place-items-center rounded-sm border border-transparent text-muted-foreground transition-colors hover:border-border/60 hover:bg-surface-2/50 hover:text-foreground"
           aria-label="Notifications"
         >
           <BellIcon />

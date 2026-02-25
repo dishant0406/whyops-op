@@ -7,7 +7,6 @@ import { calculateTraceCost, formatCostUsd, getPrimaryCostRate } from "@/lib/tra
 import { formatDuration } from "@/lib/trace-format";
 import { cn } from "@/lib/utils";
 import {
-  Bug,
   Clock,
   Cpu,
   GitGraph,
@@ -15,6 +14,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 interface TraceHeaderProps {
   trace: TraceDetail;
@@ -24,10 +24,8 @@ interface TraceHeaderProps {
 }
 
 export function TraceHeader({ trace, view, onViewChange, agentId }: TraceHeaderProps) {
-  // Calculate status from error count
   const hasErrors = trace.errorCount > 0;
-  const status = hasErrors ? "error" : "success";
-
+  const statusLabel = hasErrors ? "Error" : "Healthy";
   const duration = formatDuration(trace.duration);
 
   const pricing = getPrimaryCostRate(trace.cost ?? null);
@@ -35,108 +33,115 @@ export function TraceHeader({ trace, view, onViewChange, agentId }: TraceHeaderP
   const cost = formatCostUsd(total);
   const agentHref = agentId
     ? `/agents/${agentId}`
-    : trace.entityId
+      : trace.entityId
       ? `/agents/${trace.entityId}`
       : "/agents";
 
   return (
-    <div className="flex h-14 items-center justify-between border-b border-border/30 bg-background px-4">
-      <div className="flex items-center gap-6">
-        {/* Breadcrumb */}
-        <div className="flex items-center text-sm font-medium text-muted-foreground">
+    <div className="flex h-14 items-center justify-between border-b border-border/50 bg-background px-4">
+      <div className="flex min-w-0 items-center gap-4">
+        <div className="flex min-w-0 items-center text-sm font-medium text-muted-foreground">
           <Link
             href="/agents"
-            className="hover:text-foreground transition-colors"
+            className="truncate transition-colors hover:text-foreground"
           >
             Agents
           </Link>
           <span className="mx-2 text-border">/</span>
           <Link
             href={agentHref}
-            className="hover:text-foreground transition-colors"
+            className="truncate transition-colors hover:text-foreground"
           >
             {trace.entityName || "Agent"}
           </Link>
           <span className="mx-2 text-border">/</span>
-          <span className="text-foreground">{trace.threadId.substring(0, 16)}...</span>
+          <span className="truncate text-foreground">{trace.threadId.substring(0, 16)}...</span>
         </div>
 
-        {/* Status */}
-        <Badge className={cn(
-          "rounded px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase",
-          status === "success" && "bg-primary/20 text-primary border-primary/20",
-          status === "error" && "bg-destructive/20 text-destructive border-destructive/20"
-        )}>
-          {status}
+        <Badge
+          className={cn(
+            "h-5 px-1.5 text-[10px] uppercase tracking-wide",
+            hasErrors
+              ? "border-destructive/30 bg-destructive/10 text-destructive"
+              : "border-border/70 bg-surface-2/50 text-foreground"
+          )}
+        >
+          {statusLabel}
         </Badge>
 
-        {/* Metrics */}
-        <div className="flex items-center gap-6 border-l border-border/30 pl-6 h-6">
-          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <Clock className="h-3.5 w-3.5" />
-            <span className="text-foreground">{duration}</span> Duration
-          </div>
-          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground border-l border-border/30 pl-6">
-            <span className="text-foreground">{cost}</span> Cost
-          </div>
-          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground border-l border-border/30 pl-6">
-            <RefreshCw className="h-3.5 w-3.5 rotate-90" />
-            <span className="text-foreground">{trace.totalTokens.toLocaleString()}</span> Tokens
-          </div>
-          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground border-l border-border/30 pl-6">
-            <Cpu className="h-3.5 w-3.5" />
-            <span className="text-foreground">{trace.model || "N/A"}</span>
-          </div>
+        <div className="hidden items-center gap-2 lg:flex">
+          <MetricPill icon={<Clock className="h-3.5 w-3.5" />} label="Duration" value={duration} />
+          <MetricPill label="Cost" value={cost} />
+          <MetricPill icon={<RefreshCw className="h-3.5 w-3.5 rotate-90" />} label="Tokens" value={trace.totalTokens.toLocaleString()} />
+          <MetricPill icon={<Cpu className="h-3.5 w-3.5" />} label="Model" value={trace.model || "N/A"} />
         </div>
       </div>
 
       <div className="flex items-center gap-3">
-        {/* View Toggle */}
-        <div className="flex items-center rounded-md bg-surface-2 p-1">
-          <button
+        <div className="flex items-center rounded-sm border border-border/60 bg-card p-0.5">
+          <ViewToggleButton
+            active={view === "graph"}
             onClick={() => onViewChange("graph")}
-            className={cn(
-              "flex items-center gap-2 rounded px-3 py-1 text-xs font-medium transition-all",
-              view === "graph"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <GitGraph className="h-3.5 w-3.5" />
-            Graph
-          </button>
-          <button
+            label="Graph"
+            icon={<GitGraph className="h-3.5 w-3.5" />}
+          />
+          <ViewToggleButton
+            active={view === "timeline"}
             onClick={() => onViewChange("timeline")}
-            className={cn(
-              "flex items-center gap-2 rounded px-3 py-1 text-xs font-medium transition-all",
-              view === "timeline"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <List className="h-3.5 w-3.5" />
-            Timeline
-          </button>
+            label="Timeline"
+            icon={<List className="h-3.5 w-3.5" />}
+          />
         </div>
 
-        <div className="h-6 w-px bg-border/30" />
-
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
-          className="h-8 gap-2 text-muted-foreground hover:text-foreground"
+          className="h-8 gap-2"
         >
           <RefreshCw className="h-3.5 w-3.5" />
           Replay
         </Button>
-        <Button
-          size="sm"
-          className="h-8 gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          <Bug className="h-3.5 w-3.5 fill-current" />
-          Debug
-        </Button>
       </div>
     </div>
+  );
+}
+
+interface MetricPillProps {
+  label: string;
+  value: string;
+  icon?: ReactNode;
+}
+
+function MetricPill({ label, value, icon }: MetricPillProps) {
+  return (
+    <div className="inline-flex h-7 items-center gap-1.5 rounded-sm border border-border/60 bg-surface-2/30 px-2.5 text-xs">
+      {icon ? <span className="text-muted-foreground">{icon}</span> : null}
+      <span className="text-muted-foreground">{label}</span>
+      <span className="max-w-[9rem] truncate font-medium text-foreground">{value}</span>
+    </div>
+  );
+}
+
+interface ViewToggleButtonProps {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  icon: ReactNode;
+}
+
+function ViewToggleButton({ active, onClick, label, icon }: ViewToggleButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex h-7 items-center gap-1.5 rounded-sm px-2.5 text-xs font-medium transition-colors",
+        active
+          ? "bg-background text-foreground"
+          : "text-muted-foreground hover:text-foreground"
+      )}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }

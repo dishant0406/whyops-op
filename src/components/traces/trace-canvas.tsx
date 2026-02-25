@@ -19,6 +19,7 @@ import { convertEventsToNodesAndEdges } from "@/lib/trace-utils";
 import type { TraceDetail } from "@/stores/traceDetailStore";
 import {
   Background,
+  Controls,
   Edge, MarkerType, Node, ReactFlow
 } from "reactflow";
 import "reactflow/dist/style.css";
@@ -45,7 +46,7 @@ const defaultEdgeOptions = {
     color: "var(--muted-foreground)",
   },
   style: {
-    strokeWidth: 2,
+    strokeWidth: 1.5,
     stroke: "var(--muted-foreground)",
   },
   animated: false,
@@ -113,12 +114,18 @@ export function TraceCanvas({ trace }: TraceCanvasProps) {
         nodeTypes={nodeTypes}
         defaultEdgeOptions={defaultEdgeOptions}
         fitView
+        fitViewOptions={{ padding: 0.2, minZoom: 0.45 }}
         attributionPosition="bottom-right"
-        className="bg-background"
-        minZoom={0.5}
-        maxZoom={1.5}
+        className="bg-background/90"
+        minZoom={0.45}
+        maxZoom={1.6}
       >
-        <Background color="var(--border)" gap={20} size={1} />
+        <Background color="var(--border)" gap={24} size={1} />
+        <Controls
+          position="bottom-left"
+          className="[&>button]:h-8 [&>button]:w-8 [&>button]:rounded-sm [&>button]:border-border/60 [&>button]:bg-card [&>button]:text-muted-foreground [&>button:hover]:text-foreground"
+          showInteractive={false}
+        />
       </ReactFlow>
     </div>
   );
@@ -131,13 +138,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 const NODE_DIMENSIONS: Record<string, { width: number; height: number }> = {
   start: { width: 120, height: 60 },
   end: { width: 80, height: 80 },
-  userInput: { width: 260, height: 120 },
-  llmResponse: { width: 300, height: 130 },
-  decision: { width: 300, height: 130 },
-  toolCall: { width: 300, height: 145 },
-  toolResult: { width: 300, height: 130 },
-  error: { width: 260, height: 120 },
-  rejected: { width: 260, height: 120 },
+  userInput: { width: 256, height: 145 },
+  llmResponse: { width: 288, height: 150 },
+  decision: { width: 288, height: 150 },
+  toolCall: { width: 288, height: 165 },
+  toolResult: { width: 288, height: 155 },
+  error: { width: 256, height: 145 },
+  rejected: { width: 256, height: 145 },
 };
 
 function applyAutoLayout(nodes: Node[], edges: Edge[]): Node[] {

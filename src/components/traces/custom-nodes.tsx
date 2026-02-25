@@ -25,12 +25,12 @@ import { type ReactNode } from "react";
 import { Handle, type NodeProps, Position } from "reactflow";
 
 const NODE_CARD_CLASS =
-  "relative rounded-xl border border-border/80 bg-card/95 p-0 shadow-sm transition-colors";
-const NODE_HEADER_CLASS = "flex items-center gap-2 border-b border-border/70 px-3 py-2";
-const NODE_TITLE_CLASS = "text-[10px] font-semibold uppercase tracking-[0.18em] text-foreground";
-const META_BADGE_CLASS = "h-4 rounded border border-border bg-surface-2 px-1 text-[9px] text-muted-foreground";
+  "relative rounded-sm border border-border/60 bg-card p-0 shadow-none transition-colors";
+const NODE_HEADER_CLASS = "flex items-center gap-2 border-b border-border/60 px-3 py-2";
+const NODE_TITLE_CLASS = "text-[11px] font-medium tracking-wide text-foreground";
+const META_BADGE_CLASS = "h-5 rounded-sm border border-border/60 bg-surface-2/40 px-1.5 text-[10px] text-muted-foreground";
 const PREVIEW_TEXT_CLASS =
-  "min-h-10 max-h-20 overflow-hidden text-xs leading-5 text-muted-foreground break-words [overflow-wrap:anywhere]";
+  "min-h-10 max-h-24 overflow-hidden text-xs leading-5 text-muted-foreground break-words [overflow-wrap:anywhere]";
 
 function toJsonValue(value: unknown): string {
   if (typeof value === "string") {
@@ -81,12 +81,20 @@ function EventNodeShell({
   return (
     <div className={cn(NODE_CARD_CLASS, widthClass)}>
       {showTargetHandle && (
-        <Handle type="target" position={Position.Top} className={targetHandleClassName} />
+        <Handle
+          type="target"
+          position={Position.Top}
+          className={cn("!h-2.5 !w-2.5 !border !border-border/60 !bg-background", targetHandleClassName)}
+        />
       )}
       {header}
       {body}
       {showSourceHandle && (
-        <Handle type="source" position={Position.Bottom} className={sourceHandleClassName} />
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          className={cn("!h-2.5 !w-2.5 !border !border-border/60 !bg-background", sourceHandleClassName)}
+        />
       )}
     </div>
   );
@@ -133,7 +141,7 @@ function JsonPayloadDialogButton({ value, title, description }: JsonPayloadDialo
       <DialogTrigger asChild>
         <button
           type="button"
-          className="nodrag inline-flex h-7 items-center gap-1.5 rounded-md border border-border/70 bg-surface-2/70 px-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+          className="nodrag inline-flex h-7 items-center gap-1.5 rounded-sm border border-border/60 bg-surface-2/40 px-2 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-surface-2/60 hover:text-foreground"
           onClick={(event) => event.stopPropagation()}
           onPointerDown={(event) => event.stopPropagation()}
         >
@@ -141,8 +149,8 @@ function JsonPayloadDialogButton({ value, title, description }: JsonPayloadDialo
           View JSON
         </button>
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] gap-0 max-w-3xl overflow-hidden border-border/70 bg-card p-0">
-        <DialogHeader className="border-b border-border/70 px-5 py-4">
+      <DialogContent className="max-h-[85vh] gap-0 max-w-3xl overflow-hidden border-border/60 bg-card p-0">
+        <DialogHeader className="border-b border-border/60 px-5 py-4">
           <DialogTitle className="break-words text-sm font-semibold text-foreground [overflow-wrap:anywhere]">
             {title}
           </DialogTitle>
@@ -248,10 +256,10 @@ function JsonEventNode({
 export function StartNode() {
   return (
     <div className="flex flex-col items-center">
-      <div className="flex h-10 w-24 items-center justify-center rounded-full border-2 border-primary/50 bg-background ">
-        <span className="text-xs font-bold uppercase tracking-widest text-primary">START</span>
+      <div className="flex h-10 w-24 items-center justify-center rounded-sm border border-border/60 bg-card">
+        <span className="text-[11px] font-medium tracking-wide text-foreground">Start</span>
       </div>
-      <Handle type="source" position={Position.Bottom} className="!bg-primary/50" />
+      <Handle type="source" position={Position.Bottom} className="!h-2.5 !w-2.5 !border !border-border/60 !bg-background" />
     </div>
   );
 }
@@ -469,11 +477,11 @@ export function RejectedNode({ data }: NodeProps) {
 export function EndNode() {
   return (
     <div className="flex flex-col items-center">
-      <Handle type="target" position={Position.Top} />
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary ">
-        <StopCircle className="h-6 w-6 fill-current text-primary-foreground" />
+      <Handle type="target" position={Position.Top} className="!h-2.5 !w-2.5 !border !border-border/60 !bg-background" />
+      <div className="flex h-11 w-11 items-center justify-center rounded-sm border border-border/60 bg-card">
+        <StopCircle className="h-5 w-5 text-muted-foreground" />
       </div>
-      <span className="mt-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">End</span>
+      <span className="mt-2 text-[10px] font-medium tracking-wide text-muted-foreground">End</span>
     </div>
   );
 }

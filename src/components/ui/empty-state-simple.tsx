@@ -24,8 +24,8 @@ export function EmptyStateSimple({
       )}
       {...props}
     >
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-surface-2/50">
-        <Icon className="h-6 w-6 text-muted-foreground/50" />
+      <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-sm border border-border/40 bg-surface-2/40">
+        <Icon className="h-5 w-5 text-muted-foreground/60" />
       </div>
       <h3 className="mb-1 text-sm font-semibold text-foreground">{title}</h3>
       <p className="mb-6 max-w-sm text-xs text-muted-foreground">

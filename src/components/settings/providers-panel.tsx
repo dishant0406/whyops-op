@@ -39,14 +39,14 @@ export function ProvidersPanel({ className }: ProvidersPanelProps) {
 
   return (
     <div className={cn("space-y-6", className)}>
-      <div className="flex flex-col gap-4 rounded-xl border border-border/50 bg-card p-6 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 rounded-sm border border-border/50 bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-foreground">{SETTINGS_COPY.providersTitle}</h2>
+          <h2 className="text-base font-semibold text-foreground">{SETTINGS_COPY.providersTitle}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
         </div>
         <Button
           variant="primary"
-          size="md"
+          size="sm"
           className="gap-2"
           onClick={() => setIsModalOpen(true)}
         >
@@ -62,7 +62,7 @@ export function ProvidersPanel({ className }: ProvidersPanelProps) {
           action={
             <Button
               variant="outline"
-              size="md"
+              size="sm"
               onClick={() => setIsModalOpen(true)}
             >
               {SETTINGS_COPY.addProviderButton}
@@ -74,9 +74,9 @@ export function ProvidersPanel({ className }: ProvidersPanelProps) {
       )}
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-3xl border-border/50 bg-card">
+        <DialogContent className="max-w-3xl border-border/60 bg-card">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-foreground">
+            <DialogTitle className="text-lg font-semibold text-foreground">
               {SETTINGS_COPY.addProviderModalTitle}
             </DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">

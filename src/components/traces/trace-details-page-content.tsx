@@ -32,22 +32,22 @@ export function TraceDetailsPageContent() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      <div className="flex h-[calc(100vh-56px)] items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-foreground" />
       </div>
     );
   }
 
   if (!trace) {
     return (
-      <div className="flex items-center justify-center bg-background">
+      <div className="flex h-[calc(100vh-56px)] items-center justify-center bg-background">
         <p className="text-muted-foreground">Trace not found</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-61px)] overflow-hidden bg-background text-foreground">
+    <div className="flex h-[calc(100vh-56px)] flex-col overflow-hidden bg-background text-foreground">
       <TraceHeader
         trace={trace}
         view={view}
@@ -56,15 +56,13 @@ export function TraceDetailsPageContent() {
       />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Sidebar */}
         <TraceSidebarLeft
           trace={trace}
           isCollapsed={leftCollapsed}
           onToggle={() => setLeftCollapsed(!leftCollapsed)}
         />
 
-        {/* Center Canvas */}
-        <div className="flex-1 relative border-x border-border/30 overflow-hidden">
+        <div className="relative flex-1 overflow-hidden border-x border-border/50">
           {view === "graph" ? (
             <ReactFlowProvider>
               <TraceCanvas trace={trace} />
@@ -74,7 +72,6 @@ export function TraceDetailsPageContent() {
           )}
         </div>
 
-        {/* Right Sidebar */}
         <TraceSidebarRight
           trace={trace}
           isCollapsed={rightCollapsed}

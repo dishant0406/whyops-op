@@ -39,13 +39,13 @@ export function UserDropdown({ userEmail, options = [] }: UserDropdownProps) {
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          className="rounded-full px-0 bg-primary/20 text-primary hover:bg-primary/30 h-9 w-9"
+          className="h-8 w-8 rounded-sm border border-border/50 bg-background p-0 text-muted-foreground hover:bg-surface-2/50 hover:text-foreground"
           aria-label="User profile"
         >
           <UserIcon />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent align="end" className="w-56 border-border/70">
         {userEmail && (
           <>
             <DropdownMenuLabel className="font-normal">

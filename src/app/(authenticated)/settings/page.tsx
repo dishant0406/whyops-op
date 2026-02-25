@@ -6,20 +6,34 @@ import { EmptyStateSimple } from "@/components/ui/empty-state-simple";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SETTINGS_COPY, SETTINGS_TABS } from "@/constants/settings";
 import { cn } from "@/lib/utils";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 export default function SettingsPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const tabFromQuery = searchParams.get("tab");
+  const validTabIds: string[] = SETTINGS_TABS.map((tab) => tab.id);
+  const activeTab = tabFromQuery && validTabIds.includes(tabFromQuery)
+    ? tabFromQuery
+    : "providers";
+
+  const handleTabChange = (nextTab: string) => {
+    router.replace(`${pathname}?tab=${nextTab}`);
+  };
+
   return (
-    <div className="min-h-screen bg-grid">
-      <div className="space-y-8 p-8">
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto w-full max-w-[1280px] space-y-7 p-6 lg:p-7">
         <div>
-          <h1 className="text-3xl font-semibold text-foreground">{SETTINGS_COPY.title}</h1>
+          <h1 className="text-2xl font-semibold text-foreground">{SETTINGS_COPY.title}</h1>
           <p className="mt-2 text-sm text-muted-foreground">{SETTINGS_COPY.subtitle}</p>
         </div>
 
-        <Tabs defaultValue="providers" className="space-y-6">
-          <TabsList variant="line" className="border-b border-border/40 pb-2">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-5">
+          <TabsList variant="line" className="border-b border-border/50 pb-1">
             {SETTINGS_TABS.map((tab) => (
-              <TabsTrigger key={tab.id} value={tab.id} className="px-3">
+              <TabsTrigger key={tab.id} value={tab.id} className="px-2.5">
                 {tab.label}
               </TabsTrigger>
             ))}
@@ -39,7 +53,7 @@ export default function SettingsPage() {
                 <EmptyStateSimple
                   title={SETTINGS_COPY.emptyTabTitle}
                   description={SETTINGS_COPY.emptyTabDescription}
-                  className={cn("rounded-xl border border-border/50 bg-card")}
+                  className={cn("rounded-sm border border-border/50 bg-card")}
                 />
               </TabsContent>
             )

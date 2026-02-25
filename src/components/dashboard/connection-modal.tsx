@@ -8,8 +8,10 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { MacOSWindowContent, MacOSWindowHeader } from "@/components/ui/macos-window";
 import { cn } from "@/lib/utils";
@@ -49,20 +51,20 @@ export function ConnectionModal({ open, onOpenChange }: ConnectionModalProps) {
   const getStatusBadge = () => {
     if (error) {
       return (
-        <Badge className="shrink-0 bg-destructive/10 text-destructive">
+        <Badge className="h-5 shrink-0 border-destructive/30 bg-destructive/10 px-1.5 text-[10px] text-destructive">
           FAILED
         </Badge>
       );
     }
     if (isConnected) {
       return (
-        <Badge className="shrink-0 bg-primary/10 text-primary">
+        <Badge className="h-5 shrink-0 border-border/70 bg-surface-2/50 px-1.5 text-[10px] text-foreground">
           CONNECTED
         </Badge>
       );
     }
     return (
-      <Badge className="shrink-0 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">
+      <Badge className="h-5 shrink-0 border-border/70 bg-surface-2/40 px-1.5 text-[10px] text-muted-foreground">
         WAITING
       </Badge>
     );
@@ -70,51 +72,47 @@ export function ConnectionModal({ open, onOpenChange }: ConnectionModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl border-border/50 bg-card p-0">
+      <DialogContent className="max-w-2xl gap-0 border-border/60 bg-card p-0">
         <div className="space-y-6 p-6 pr-14">
-          {/* Header */}
           <DialogHeader className="space-y-3">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
-                <h2 className="text-xl font-semibold text-foreground">
+                <DialogTitle className="text-lg">
                   {error ? "Connection Failed" : isConnected ? "Connection Established" : "Establishing Connection"}
-                </h2>
-                <p className="mt-1 text-sm text-muted-foreground">
+                </DialogTitle>
+                <DialogDescription className="mt-1 text-sm">
                   {error
                     ? "Could not connect to WhyOps cloud"
                     : isConnected
                     ? "Your agent is connected to WhyOps"
                     : "Connecting local agent to WhyOps cloud"}
-                </p>
+                </DialogDescription>
               </div>
               {getStatusBadge()}
             </div>
           </DialogHeader>
 
-          {/* Connection Steps */}
           <div className="space-y-4">
             {steps.map((step) => (
               <div key={step.id} className="flex items-start gap-3">
-                {/* Status Icon */}
                 <div className="mt-0.5">
                   {step.status === "success" ? (
-                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/20">
-                      <CheckIcon className="h-3 w-3 text-primary" />
+                    <div className="flex h-5 w-5 items-center justify-center rounded-sm border border-border/60 bg-surface-2/40">
+                      <CheckIcon className="h-3 w-3 text-foreground" />
                     </div>
                   ) : step.status === "loading" ? (
                     <div className="flex h-5 w-5 items-center justify-center">
-                      <LoadingSpinner className="h-5 w-5 text-yellow-500" />
+                      <LoadingSpinner className="h-4 w-4 text-muted-foreground" />
                     </div>
                   ) : step.status === "error" ? (
-                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive/20">
+                    <div className="flex h-5 w-5 items-center justify-center rounded-sm border border-destructive/40 bg-destructive/10">
                       <XIcon className="h-3 w-3 text-destructive" />
                     </div>
                   ) : (
-                    <div className="h-5 w-5 rounded-full border-2 border-muted" />
+                    <div className="h-5 w-5 rounded-sm border border-border/50 bg-surface-2/20" />
                   )}
                 </div>
 
-                {/* Step Content */}
                 <div className="flex-1 space-y-0.5">
                   <p className="text-sm font-medium text-foreground">
                     {step.label}
@@ -127,8 +125,7 @@ export function ConnectionModal({ open, onOpenChange }: ConnectionModalProps) {
             ))}
           </div>
 
-          {/* Terminal Log */}
-          <div className="overflow-hidden rounded-xl border border-border/50 bg-[oklch(0.15_0.02_180)]">
+          <div className="overflow-hidden rounded-sm border border-border/60 bg-surface-2/40">
             <MacOSWindowHeader title="CONNECTION_LOG" />
             <MacOSWindowContent className="p-4 font-mono text-xs leading-relaxed">
               {logs.length === 0 ? (
@@ -139,14 +136,14 @@ export function ConnectionModal({ open, onOpenChange }: ConnectionModalProps) {
                 <>
                   {logs.map((log, index) => (
                     <div key={index} className="flex gap-2">
-                      <span className="text-primary">[{log.time}]</span>
+                      <span className="text-muted-foreground">[{log.time}]</span>
                       <span className="text-foreground/80">&gt; {log.message}</span>
                       {log.status && (
                         <span
                           className={cn(
                             "ml-auto",
-                            log.status === "success" && "text-primary",
-                            log.status === "connected" && "text-primary",
+                            log.status === "success" && "text-foreground",
+                            log.status === "connected" && "text-foreground",
                             log.status === "error" && "text-destructive"
                           )}
                         >
@@ -167,7 +164,6 @@ export function ConnectionModal({ open, onOpenChange }: ConnectionModalProps) {
             </MacOSWindowContent>
           </div>
 
-          {/* Info Message */}
           <InfoBox variant="info" icon={Info} title="">
             Ensure your agent is running and{" "}
             <code className="rounded bg-surface-2 px-1 py-0.5 font-mono text-xs text-primary">
@@ -177,12 +173,11 @@ export function ConnectionModal({ open, onOpenChange }: ConnectionModalProps) {
           </InfoBox>
         </div>
 
-        {/* Footer */}
-        <DialogFooter className="border-t border-border/50 bg-surface-2/50 px-6 py-4">
+        <DialogFooter className="border-t border-border/50 bg-surface-2/30 px-6 py-4">
           <div className="flex w-full items-center justify-between">
             <Button
               variant="ghost"
-              size="md"
+              size="sm"
               onClick={() => handleClose(false)}
             >
               {isConnected ? "Close" : "Cancel Connection"}
@@ -190,7 +185,7 @@ export function ConnectionModal({ open, onOpenChange }: ConnectionModalProps) {
             {!isConnected && !error && (
               <Button
                 variant="outline"
-                size="md"
+                size="sm"
                 onClick={testConnection}
                 disabled={isTesting}
               >

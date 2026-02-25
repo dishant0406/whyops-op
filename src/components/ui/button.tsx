@@ -4,22 +4,22 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "relative inline-flex items-center justify-center gap-2 rounded-sm text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:pointer-events-none disabled:opacity-50",
+  "relative inline-flex items-center justify-center gap-2 rounded-sm text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
         primary:
           "bg-primary text-primary-foreground hover:bg-primary/90",
         outline:
-          "border border-border/70 bg-transparent text-foreground hover:border-border hover:bg-surface-2",
-        ghost: "bg-transparent text-foreground/80 hover:text-foreground",
+          "border border-border/70 bg-background text-foreground hover:border-border hover:bg-surface-2/70",
+        ghost: "bg-transparent text-muted-foreground hover:bg-surface-2/40 hover:text-foreground",
         muted:
           "bg-surface-2 text-foreground/80 hover:bg-surface-3 hover:text-foreground",
       },
       size: {
-        sm: "h-9 px-4",
-        md: "h-11 px-5",
-        lg: "h-12 px-6 text-base",
+        sm: "h-8 px-3",
+        md: "h-10 px-4",
+        lg: "h-11 px-5 text-base",
       },
     },
     defaultVariants: {

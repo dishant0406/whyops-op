@@ -43,9 +43,9 @@ interface ToolInfo {
 
 type SectionKey = "agent" | "stats" | "models" | "tools" | "systemPrompt";
 
-const SECTION_CARD_CLASS = "rounded-lg border border-border/30 bg-surface-2/30 p-4";
+const SECTION_CARD_CLASS = "rounded-sm border border-border/50 bg-card p-3";
 const SECTION_TRIGGER_CLASS =
-  "mb-3 flex w-full items-center justify-between text-xs font-medium uppercase tracking-widest text-muted-foreground hover:text-foreground";
+  "mb-2.5 flex w-full items-center justify-between text-xs font-medium text-muted-foreground transition-colors hover:text-foreground";
 
 function buildPromptPreview(prompt: string): string {
   const compact = prompt.replace(/\s+/g, " ").trim();
@@ -194,13 +194,13 @@ function toJsonViewerValue(value: unknown): string {
 function SchemaPanel({ title, value, emptyText }: { title: string; value: unknown | null; emptyText: string }) {
   return (
     <div className="space-y-2">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <p className="text-xs font-medium text-muted-foreground">
         {title}
       </p>
       {value !== null ? (
         <JsonViewer value={toJsonViewerValue(value)} />
       ) : (
-        <div className="rounded-md border border-border/60 bg-surface-2/40 p-3 text-xs text-muted-foreground">
+        <div className="rounded-sm border border-border/60 bg-surface-2/30 p-3 text-xs text-muted-foreground">
           {emptyText}
         </div>
       )}
@@ -215,14 +215,14 @@ function ToolSchemaDialog({ tool }: { tool: ToolInfo }) {
         <Button
           variant="ghost"
           size="sm"
-          className="h-6 w-6 p-0 hover:bg-surface-2"
+          className="h-6 w-6 p-0 hover:bg-surface-2/60"
           aria-label={`View schemas for ${tool.name}`}
         >
           <Eye className="h-3.5 w-3.5 text-muted-foreground" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl border-border/70 bg-card p-0">
-        <DialogHeader className="border-b border-border/70 px-5 py-4">
+      <DialogContent className="max-w-4xl border-border/60 bg-card p-0">
+        <DialogHeader className="border-b border-border/60 px-5 py-4">
           <DialogTitle className="text-sm font-semibold text-foreground">
             {tool.name}
           </DialogTitle>
@@ -246,14 +246,14 @@ function SystemPromptDialog({ prompt }: { prompt: string }) {
         <Button
           variant="ghost"
           size="sm"
-          className="h-6 w-6 p-0 hover:bg-surface-2"
+          className="h-6 w-6 p-0 hover:bg-surface-2/60"
           aria-label="View system prompt"
         >
           <Eye className="h-3.5 w-3.5 text-muted-foreground" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl border-border/70 bg-card p-0">
-        <DialogHeader className="border-b border-border/70 px-5 py-4">
+      <DialogContent className="max-w-4xl border-border/60 bg-card p-0">
+        <DialogHeader className="border-b border-border/60 px-5 py-4">
           <DialogTitle className="text-sm font-semibold text-foreground">
             System Prompt
           </DialogTitle>
@@ -262,7 +262,7 @@ function SystemPromptDialog({ prompt }: { prompt: string }) {
           </DialogDescription>
         </DialogHeader>
         <div className="max-h-[70vh] overflow-auto p-4">
-          <div className="rounded-md border border-border/60 bg-surface-2/40 p-3">
+          <div className="rounded-sm border border-border/60 bg-surface-2/30 p-3">
             <div className="text-xs text-foreground">
               <Streamdown>{prompt}</Streamdown>
             </div>
@@ -275,7 +275,7 @@ function SystemPromptDialog({ prompt }: { prompt: string }) {
 
 function CollapsedSidebarItem({ title, icon }: { title: string; icon: React.ReactNode }) {
   return (
-    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-surface-2/50" title={title}>
+    <div className="flex h-8 w-8 items-center justify-center rounded-sm border border-border/60 bg-surface-2/30" title={title}>
       {icon}
     </div>
   );
@@ -357,7 +357,7 @@ function StatItem({ label, value, isError = false }: { label: string; value: str
 
 function ModelBadgeItem({ model }: { model: string }) {
   return (
-    <Badge className="border-border bg-surface-2 font-mono text-xs text-foreground">
+    <Badge className="border-border/60 bg-surface-2/40 font-mono text-xs text-foreground">
       {model}
     </Badge>
   );
@@ -365,8 +365,8 @@ function ModelBadgeItem({ model }: { model: string }) {
 
 function ToolListItem({ tool }: { tool: ToolInfo }) {
   return (
-    <div className="flex items-center gap-2 text-xs">
-      <Terminal className="h-3 w-3 text-muted-foreground" />
+    <div className="flex items-center gap-2 rounded-sm border border-border/40 bg-surface-2/20 px-2.5 py-2 text-xs">
+      <Terminal className="h-3.5 w-3.5 text-muted-foreground" />
       <span className="min-w-0 flex-1 truncate font-mono text-foreground" title={tool.name}>
         {tool.name}
       </span>
@@ -377,8 +377,8 @@ function ToolListItem({ tool }: { tool: ToolInfo }) {
 
 function SystemPromptPreviewRow({ prompt }: { prompt: string }) {
   return (
-    <div className="flex items-center gap-2 text-xs">
-      <Sparkles className="h-3 w-3 text-muted-foreground" />
+    <div className="flex items-center gap-2 rounded-sm border border-border/40 bg-surface-2/20 px-2.5 py-2 text-xs">
+      <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
       <span className="min-w-0 flex-1 truncate text-muted-foreground" title={prompt}>
         {buildPromptPreview(prompt)}
       </span>
@@ -392,6 +392,7 @@ export function TraceSidebarLeft({ trace, isCollapsed, onToggle }: TraceSidebarL
     "agent",
     "stats",
     "tools",
+    "systemPrompt",
   ]);
 
   const toggleSection = (section: SectionKey) => {
@@ -487,12 +488,12 @@ export function TraceSidebarLeft({ trace, isCollapsed, onToggle }: TraceSidebarL
     ];
 
     return (
-      <div className="flex w-12 flex-col items-center border-r border-border/30 bg-background py-4 transition-all duration-300">
+      <div className="flex w-[52px] flex-col items-center border-r border-border/50 bg-background py-4 transition-all duration-300">
         <Button
           variant="ghost"
           size="sm"
           onClick={onToggle}
-          className="h-8 w-8 p-0 mb-4 hover:bg-surface-2"
+          className="mb-4 h-8 w-8 p-0 hover:bg-surface-2/60"
         >
           <PanelLeftOpen className="h-4 w-4 text-muted-foreground" />
         </Button>
@@ -506,22 +507,22 @@ export function TraceSidebarLeft({ trace, isCollapsed, onToggle }: TraceSidebarL
   }
 
   return (
-    <div className="w-72 border-r border-border/30 bg-card overflow-y-auto transition-all duration-300">
-      <div className="flex h-10 items-center justify-between border-b border-border/30 px-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+    <div className="w-72 overflow-y-auto border-r border-border/50 bg-background transition-all duration-300">
+      <div className="flex h-11 items-center justify-between border-b border-border/50 px-4">
+        <h3 className="text-xs font-medium text-muted-foreground">
           Agent Info
         </h3>
         <Button
           variant="ghost"
           size="sm"
           onClick={onToggle}
-          className="h-6 w-6 p-0 hover:bg-surface-2"
+          className="h-6 w-6 p-0 hover:bg-surface-2/60"
         >
           <PanelLeftClose className="h-3.5 w-3.5 text-muted-foreground" />
         </Button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 space-y-3.5 overflow-y-auto p-4">
         <SidebarSection
           id="agent"
           label="Agent"

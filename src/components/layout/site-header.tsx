@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 import { LogoMark } from "@/components/brand/logo-mark";
 import { cn } from "@/lib/utils";
@@ -16,18 +17,18 @@ export function SiteHeader({ actionLabel, className, ...props }: SiteHeaderProps
   return (
     <header
       className={cn(
-        "flex w-full items-center justify-between px-6 py-5 text-sm text-muted-foreground",
+        "flex h-14 w-full items-center justify-between border-b border-border/50 px-6 text-sm text-muted-foreground",
         className
       )}
       {...props}
     >
-      <div className="flex items-center gap-2">
+      <Link href="/agents" className="flex items-center gap-2" aria-label="Go to agents">
         <LogoMark size="sm" />
         <span className="text-base font-semibold text-foreground">WhyOps</span>
-      </div>
+      </Link>
       {actionLabel ? (
         <button
-          className="text-sm font-semibold text-foreground/80 hover:text-foreground"
+          className="rounded-sm border border-transparent px-2.5 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:border-border/60 hover:bg-surface-2/50 hover:text-foreground"
           onClick={async () => {
             await signOut();
             router.replace("/");

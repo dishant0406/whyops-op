@@ -40,16 +40,16 @@ export function ProviderList({ providers, variant = "compact", className }: Prov
           <div
             key={provider.id}
             className={cn(
-              "flex flex-col gap-4 rounded-lg border border-border/50 bg-card p-4",
+              "flex flex-col gap-4 rounded-sm border border-border/50 bg-card p-4",
               variant === "compact" ? "sm:flex-row sm:items-center sm:justify-between" : ""
             )}
           >
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-2 text-primary">
-                <Icon className="h-5 w-5" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-sm border border-border/50 bg-surface-2/40 text-muted-foreground">
+                <Icon className="h-4 w-4" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-foreground">{provider.name}</p>
+                <p className="text-sm font-medium text-foreground">{provider.name}</p>
                 <p className="text-xs text-muted-foreground">{meta.label}</p>
               </div>
             </div>
@@ -57,11 +57,11 @@ export function ProviderList({ providers, variant = "compact", className }: Prov
             {variant === "detailed" && (
               <div className="grid gap-2 text-xs text-muted-foreground">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Base URL</p>
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">Base URL</p>
                   <p className="font-mono text-[11px] text-foreground/80">{provider.baseUrl}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Last Updated</p>
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">Last Updated</p>
                   <p className="text-foreground/80">{formatShortDate(provider.updatedAt)}</p>
                 </div>
               </div>

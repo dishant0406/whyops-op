@@ -31,19 +31,19 @@ export function StatCard({
       {...props}
     >
       <div className="flex-1 space-y-1.5">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <p className="text-xs font-medium text-muted-foreground">
           {title}
         </p>
         <div className="flex items-baseline gap-2">
-          <h3 className="text-2xl font-semibold text-foreground">{value}</h3>
+          <h3 className="text-2xl font-semibold tabular-nums text-foreground">{value}</h3>
           {trend && (
             <span
               className={cn(
-                "text-[11px] font-medium",
+                "text-[11px] font-medium tabular-nums",
                 trend.isPositive ? "text-primary" : "text-destructive"
               )}
             >
-              {trend.isPositive ? "↑" : "↓"} {trend.value}
+              {trend.value}
             </span>
           )}
         </div>
@@ -52,7 +52,7 @@ export function StatCard({
         )}
       </div>
       {icon && (
-        <div className="flex h-10 w-10 items-center justify-center border border-border/50 bg-surface-2/40">
+        <div className="flex h-10 w-10 items-center justify-center border border-border/50 bg-surface-2/40 [&_svg]:text-muted-foreground">
           {icon}
         </div>
       )}
