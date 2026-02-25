@@ -10,10 +10,10 @@ const app = new Hono();
 
 // Validation schemas - userId, projectId, environmentId are optional (extracted from headers)
 const eventSchema = z.object({
-  eventType: z.enum(['user_message', 'llm_response', 'tool_call', 'tool_call_request', 'tool_call_response', 'tool_result', 'error'], {
+  eventType: z.enum(['user_message', 'llm_response', 'llm_thinking', 'tool_call', 'tool_call_request', 'tool_call_response', 'tool_result', 'error'], {
     errorMap: () => ({
       message:
-        "Invalid event type. Must be one of: 'user_message', 'llm_response', 'tool_call', 'tool_call_request', 'tool_call_response', 'tool_result', 'error'. See /api/events/help.",
+        "Invalid event type. Must be one of: 'user_message', 'llm_response', 'llm_thinking', 'tool_call', 'tool_call_request', 'tool_call_response', 'tool_result', 'error'. See /api/events/help.",
     }),
   }),
   traceId: z.string().min(1).max(128, "Trace ID must be between 1 and 128 characters"),

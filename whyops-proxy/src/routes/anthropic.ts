@@ -55,6 +55,7 @@ async function trackAnthropicStream(
   const sseDecoder = new SseEventDecoder();
   let accumulatedState = AnthropicParser.getInitialStreamState();
   const toolCallState = new Map<number, any>();
+  const thinkingState = new Map<number, any>();
 
   try {
     while (true) {
@@ -67,7 +68,7 @@ async function trackAnthropicStream(
       for (const data of events) {
         try {
           const parsed = JSON.parse(data) as AnthropicStreamEvent;
-          accumulatedState = AnthropicParser.parseStreamEvent(parsed, accumulatedState, toolCallState);
+          accumulatedState = AnthropicParser.parseStreamEvent(parsed, accumulatedState, toolCallState, thinkingState);
         } catch {
           // Ignore malformed chunks for analytics only path
         }
@@ -78,7 +79,7 @@ async function trackAnthropicStream(
     for (const data of finalEvents) {
       try {
         const parsed = JSON.parse(data) as AnthropicStreamEvent;
-        accumulatedState = AnthropicParser.parseStreamEvent(parsed, accumulatedState, toolCallState);
+        accumulatedState = AnthropicParser.parseStreamEvent(parsed, accumulatedState, toolCallState, thinkingState);
       } catch {
         // Ignore malformed chunks for analytics only path
       }
@@ -106,6 +107,27 @@ async function trackAnthropicStream(
         latencyMs,
       }
     });
+
+    const thinkingBlocks = accumulatedState.thinkingBlocks && accumulatedState.thinkingBlocks.length > 0
+      ? accumulatedState.thinkingBlocks
+      : Array.from(thinkingState.values());
+
+    if (thinkingBlocks.length > 0) {
+      for (const block of thinkingBlocks) {
+        dispatchAnalyseEvent(apiKey, {
+          eventType: 'llm_thinking',
+          traceId,
+          spanId: generateSpanId(),
+          providerId,
+          agentName,
+          content: block,
+          metadata: {
+            provider: 'anthropic',
+            model,
+          },
+        });
+      }
+    }
   } finally {
     reader.releaseLock();
   }
@@ -290,6 +312,23 @@ app.post('/messages', async (c) => {
           latencyMs,
         },
       });
+
+      if (parsedResponse.thinkingBlocks && parsedResponse.thinkingBlocks.length > 0) {
+        for (const block of parsedResponse.thinkingBlocks) {
+          dispatchAnalyseEvent(auth.apiKey, {
+            eventType: 'llm_thinking',
+            traceId,
+            spanId: generateSpanId(),
+            providerId: provider?.id,
+            agentName,
+            content: block,
+            metadata: {
+              provider: 'anthropic',
+              model: requestBody.model,
+            },
+          });
+        }
+      }
 
       logger.info({ traceId, latencyMs, model: requestBody.model }, 'Request completed');
 
