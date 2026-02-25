@@ -131,13 +131,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 const NODE_DIMENSIONS: Record<string, { width: number; height: number }> = {
   start: { width: 120, height: 60 },
   end: { width: 80, height: 80 },
-  userInput: { width: 260, height: 150 },
-  llmResponse: { width: 300, height: 140 },
-  decision: { width: 300, height: 140 },
-  toolCall: { width: 300, height: 180 },
-  toolResult: { width: 300, height: 180 },
-  error: { width: 260, height: 140 },
-  rejected: { width: 260, height: 140 },
+  userInput: { width: 260, height: 120 },
+  llmResponse: { width: 300, height: 130 },
+  decision: { width: 300, height: 130 },
+  toolCall: { width: 300, height: 145 },
+  toolResult: { width: 300, height: 130 },
+  error: { width: 260, height: 120 },
+  rejected: { width: 260, height: 120 },
 };
 
 function applyAutoLayout(nodes: Node[], edges: Edge[]): Node[] {
