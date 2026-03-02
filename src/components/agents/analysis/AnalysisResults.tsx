@@ -2,7 +2,6 @@
 
 import {
   AlertTriangle,
-  Beaker,
   CheckCircle2,
   Clock3,
   Gauge,
@@ -49,6 +48,12 @@ interface BarItem {
   label: string;
   value: number;
   hint?: string;
+}
+
+interface InsightBucket {
+  key: string;
+  label: string;
+  items: string[];
 }
 
 function getStatusClass(status: AgentAnalysisRun["status"]): string {
@@ -302,165 +307,252 @@ export function AnalysisResults({ run, isStreaming = false }: AnalysisResultsPro
             <Card className="border-border/60 bg-card px-5 py-5">
               <SectionTitle icon={<MessageSquareText className="h-4 w-4" />} title="Query Intelligence" />
 
-              <div className="mt-4 space-y-4">
-                <InsightHeader
-                  title="LLM Read"
-                  headline={query?.llmInsights?.headline}
-                  fallback="No LLM query insight available yet."
-                />
+              <Tabs defaultValue="signals" className="mt-4 space-y-3">
+                <TabsList
+                  variant="line"
+                  className="h-auto w-full justify-start gap-1 overflow-x-auto border-b border-border/50 bg-transparent p-0 pb-2"
+                >
+                  <TabsTrigger value="signals" className="h-8 flex-none rounded-sm px-3 text-xs font-medium">
+                    Signals
+                  </TabsTrigger>
+                  <TabsTrigger value="intent-outcomes" className="h-8 flex-none rounded-sm px-3 text-xs font-medium">
+                    Intent Outcomes
+                  </TabsTrigger>
+                  <TabsTrigger value="llm-analysis" className="h-8 flex-none rounded-sm px-3 text-xs font-medium">
+                    LLM Analysis
+                  </TabsTrigger>
+                </TabsList>
 
-                <BarList
-                  title="Top Initial Queries"
-                  items={topInitialQueryBars}
-                  formatter={(value) => `${value.toFixed(0)}`}
-                />
+                <TabsContent value="signals" className="space-y-3">
+                  <InsightHeader
+                    title="LLM Read"
+                    headline={query?.llmInsights?.headline}
+                    fallback="No LLM query insight available yet."
+                  />
+                  <BarList
+                    title="Top Initial Queries"
+                    items={topInitialQueryBars}
+                    formatter={(value) => `${value.toFixed(0)}`}
+                  />
+                  <BarList
+                    title="High Error Query Classes"
+                    items={highErrorQueryBars}
+                    formatter={(value) => `${value.toFixed(1)}%`}
+                  />
+                  <BarList
+                    title="First-Query Intent Demand"
+                    items={firstQueryIntentBars}
+                    formatter={(value) => `${value.toFixed(0)}`}
+                  />
+                </TabsContent>
 
-                <BarList
-                  title="High Error Query Classes"
-                  items={highErrorQueryBars}
-                  formatter={(value) => `${value.toFixed(1)}%`}
-                />
-
-                <BarList
-                  title="First-Query Intent Demand"
-                  items={firstQueryIntentBars}
-                  formatter={(value) => `${value.toFixed(0)}`}
-                />
-
-                {firstQueryIntentOutcomes.length > 0 ? (
+                <TabsContent value="intent-outcomes" className="space-y-3">
                   <div className="rounded-sm border border-border/55 bg-surface-2/20 px-3 py-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       First-Query Intent Outcomes
                     </p>
-                    <div className="mt-2 space-y-2">
-                      {firstQueryIntentOutcomes.map((item) => (
-                        <div key={item.intent} className="rounded-sm border border-border/50 bg-background/60 px-2.5 py-2">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-sm font-medium text-foreground">{item.intent.replace(/_/g, " ")}</p>
-                            <span className="text-xs text-muted-foreground">{item.traceCount} traces</span>
+                    {(firstQueryIntentOutcomes || []).length === 0 ? (
+                      <p className="mt-2 text-sm text-muted-foreground">No intent outcomes generated in this run.</p>
+                    ) : (
+                      <div className="mt-2 grid gap-2">
+                        {firstQueryIntentOutcomes.map((item) => (
+                          <div
+                            key={item.intent}
+                            className="rounded-sm border border-border/50 bg-background/60 px-2.5 py-2"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-sm font-medium text-foreground">{item.intent.replace(/_/g, " ")}</p>
+                              <span className="text-xs text-muted-foreground">{item.traceCount} traces</span>
+                            </div>
+                            <div className="mt-1 flex flex-wrap gap-1.5">
+                              <Badge className="border-border/60 bg-surface-2/40 text-[10px] text-foreground">
+                                Resolve {item.likelyResolvedRate.toFixed(1)}%
+                              </Badge>
+                              <Badge className="border-border/60 bg-surface-2/40 text-[10px] text-foreground">
+                                Error {item.errorRate.toFixed(1)}%
+                              </Badge>
+                              <Badge className="border-border/60 bg-surface-2/40 text-[10px] text-foreground">
+                                Follow-up {item.followupRate.toFixed(1)}%
+                              </Badge>
+                              <Badge className="border-border/60 bg-surface-2/40 text-[10px] text-foreground">
+                                Tool Miss {item.expectedToolMissRate.toFixed(1)}%
+                              </Badge>
+                            </div>
                           </div>
-                          <div className="mt-1 flex flex-wrap gap-1.5">
-                            <Badge className="border-border/60 bg-surface-2/40 text-[10px] text-foreground">
-                              Resolve {item.likelyResolvedRate.toFixed(1)}%
-                            </Badge>
-                            <Badge className="border-border/60 bg-surface-2/40 text-[10px] text-foreground">
-                              Error {item.errorRate.toFixed(1)}%
-                            </Badge>
-                            <Badge className="border-border/60 bg-surface-2/40 text-[10px] text-foreground">
-                              Follow-up {item.followupRate.toFixed(1)}%
-                            </Badge>
-                            <Badge className="border-border/60 bg-surface-2/40 text-[10px] text-foreground">
-                              Tool Miss {item.expectedToolMissRate.toFixed(1)}%
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                ) : null}
 
-                {topIntentsNeedingDevelopment.length > 0 ? (
                   <div className="rounded-sm border border-border/55 bg-surface-2/20 px-3 py-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Intents Needing Development
                     </p>
-                    <div className="mt-2 space-y-2">
-                      {topIntentsNeedingDevelopment.map((item) => (
-                        <div key={`${item.intent}-${item.traceCount}`} className="rounded-sm border border-border/50 bg-background/60 px-2.5 py-2">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-sm font-medium text-foreground">{item.intent.replace(/_/g, " ")}</p>
-                            <span className="text-xs text-warning">Need {item.developmentNeedScore.toFixed(1)}</span>
+                    {(topIntentsNeedingDevelopment || []).length === 0 ? (
+                      <p className="mt-2 text-sm text-muted-foreground">No high-risk intent groups identified.</p>
+                    ) : (
+                      <div className="mt-2 grid gap-2">
+                        {topIntentsNeedingDevelopment.map((item) => (
+                          <div
+                            key={`${item.intent}-${item.traceCount}`}
+                            className="rounded-sm border border-border/50 bg-background/60 px-2.5 py-2"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-sm font-medium text-foreground">{item.intent.replace(/_/g, " ")}</p>
+                              <span className="text-xs text-warning">
+                                Need {item.developmentNeedScore.toFixed(1)}
+                              </span>
+                            </div>
+                            <div className="mt-1 flex flex-wrap gap-1.5">
+                              {(item.reasons || []).slice(0, 4).map((reason) => (
+                                <Badge
+                                  key={`${item.intent}-${reason}`}
+                                  className="border-border/60 bg-surface-2/40 text-[10px] text-foreground"
+                                >
+                                  {truncateText(reason, 40)}
+                                </Badge>
+                              ))}
+                            </div>
                           </div>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {item.reasons.length > 0 ? item.reasons.join(", ") : "Performance below target in this intent."}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                ) : null}
+                </TabsContent>
 
-                <InsightList
-                  title="Key Themes"
-                  items={query?.llmInsights?.keyThemes || []}
-                />
-                <InsightList
-                  title="Friction Points"
-                  items={query?.llmInsights?.frictionPoints || []}
-                />
-                <InsightList
-                  title="Opportunities"
-                  items={query?.llmInsights?.opportunities || []}
-                />
-                <InsightList
-                  title="Action Hints"
-                  items={query?.llmInsights?.actionHints || []}
-                />
-              </div>
+                <TabsContent value="llm-analysis" className="space-y-3">
+                  <InsightTabsPanel
+                    title="Query Intelligence Breakdown"
+                    buckets={[
+                      { key: "themes", label: "Themes", items: query?.llmInsights?.keyThemes || [] },
+                      { key: "friction", label: "Friction", items: query?.llmInsights?.frictionPoints || [] },
+                      { key: "opportunities", label: "Opportunities", items: query?.llmInsights?.opportunities || [] },
+                      { key: "actions", label: "Actions", items: query?.llmInsights?.actionHints || [] },
+                    ]}
+                    emptyText="No LLM query insights available yet."
+                  />
+                </TabsContent>
+              </Tabs>
             </Card>
 
             <Card className="border-border/60 bg-card px-5 py-5">
               <SectionTitle icon={<MessageSquareText className="h-4 w-4" />} title="Follow-up & Intent" />
 
-              <div className="mt-4 space-y-4">
-                <InsightHeader
-                  title="LLM Read"
-                  headline={followup?.llmInsights?.headline}
-                  fallback="No LLM follow-up insight available yet."
-                />
+              <Tabs defaultValue="signals" className="mt-4 space-y-3">
+                <TabsList
+                  variant="line"
+                  className="h-auto w-full justify-start gap-1 overflow-x-auto border-b border-border/50 bg-transparent p-0 pb-2"
+                >
+                  <TabsTrigger value="signals" className="h-8 flex-none rounded-sm px-3 text-xs font-medium">
+                    Signals
+                  </TabsTrigger>
+                  <TabsTrigger value="intent-map" className="h-8 flex-none rounded-sm px-3 text-xs font-medium">
+                    Intent Map
+                  </TabsTrigger>
+                  <TabsTrigger value="llm-analysis" className="h-8 flex-none rounded-sm px-3 text-xs font-medium">
+                    LLM Analysis
+                  </TabsTrigger>
+                </TabsList>
 
-                <div className="grid gap-2 sm:grid-cols-3">
-                  <MetricChip label="Follow-up Rate" value={formatPercent(followup?.followupRate)} />
-                  <MetricChip label="Avg Turns / Trace" value={formatMetricNumber(followup?.avgTurnsPerTrace)} />
-                  <MetricChip label="Looping Traces" value={formatMetricNumber(followup?.loopingTraces)} />
-                </div>
+                <TabsContent value="signals" className="space-y-3">
+                  <InsightHeader
+                    title="LLM Read"
+                    headline={followup?.llmInsights?.headline}
+                    fallback="No LLM follow-up insight available yet."
+                  />
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <MetricChip label="Follow-up Rate" value={formatPercent(followup?.followupRate)} />
+                    <MetricChip label="Avg Turns / Trace" value={formatMetricNumber(followup?.avgTurnsPerTrace)} />
+                    <MetricChip label="Looping Traces" value={formatMetricNumber(followup?.loopingTraces)} />
+                  </div>
+                  <BarList
+                    title="Top Follow-up Queries"
+                    items={topFollowupBars}
+                    formatter={(value) => `${value.toFixed(0)}`}
+                  />
+                  <BarList
+                    title="Follow-up Intent Categories"
+                    items={followupIntentBars}
+                    formatter={(value) => `${value.toFixed(0)}`}
+                  />
+                </TabsContent>
 
-                <BarList
-                  title="Top Follow-up Queries"
-                  items={topFollowupBars}
-                  formatter={(value) => `${value.toFixed(0)}`}
-                />
-
-                <BarList
-                  title="Follow-up Intent Categories"
-                  items={followupIntentBars}
-                  formatter={(value) => `${value.toFixed(0)}`}
-                />
-
-                <InsightList
-                  title="Why Users Follow Up"
-                  items={followup?.llmInsights?.whyUsersFollowUp || []}
-                />
-                <InsightList
-                  title="Unresolved Patterns"
-                  items={followup?.llmInsights?.unresolvedPatterns || []}
-                />
-                <InsightList
-                  title="Repair Opportunities"
-                  items={followup?.llmInsights?.repairOpportunities || []}
-                />
-                <InsightList
-                  title="Action Hints"
-                  items={followup?.llmInsights?.actionHints || []}
-                />
-
-                {Object.keys(intent?.intentDistribution || {}).length > 0 ? (
+                <TabsContent value="intent-map" className="space-y-3">
                   <div className="rounded-sm border border-border/55 bg-surface-2/20 px-3 py-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Top Intent Clusters (Distribution)
+                      Top Intent Clusters
                     </p>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {Object.entries(intent?.intentDistribution || {})
-                        .slice(0, 8)
-                        .map(([key, value]) => (
-                          <Badge key={key} className="border-border/60 bg-surface-2/35 text-[10px] text-foreground">
-                            {key.replace(/_/g, " ")}: {value.toFixed(1)}%
-                          </Badge>
+                    {(intent?.topIntentClusters || []).length === 0 ? (
+                      <p className="mt-2 text-sm text-muted-foreground">No intent clusters generated in this run.</p>
+                    ) : (
+                      <div className="mt-2 grid gap-2">
+                        {(intent?.topIntentClusters || []).slice(0, 8).map((cluster) => (
+                          <div
+                            key={`${cluster.clusterKey}-${cluster.sampleQuery}`}
+                            className="rounded-sm border border-border/50 bg-background/60 px-2.5 py-2"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-sm font-medium text-foreground">
+                                {cluster.clusterKey.replace(/_/g, " ")}
+                              </p>
+                              <span className="text-xs text-muted-foreground">{cluster.count} traces</span>
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {truncateText(cluster.sampleQuery, 120)}
+                            </p>
+                          </div>
                         ))}
-                    </div>
+                      </div>
+                    )}
                   </div>
-                ) : null}
-              </div>
+
+                  {Object.keys(intent?.intentDistribution || {}).length > 0 ? (
+                    <div className="rounded-sm border border-border/55 bg-surface-2/20 px-3 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Intent Distribution
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {Object.entries(intent?.intentDistribution || {})
+                          .slice(0, 10)
+                          .map(([key, value]) => (
+                            <Badge key={key} className="border-border/60 bg-surface-2/35 text-[10px] text-foreground">
+                              {key.replace(/_/g, " ")}: {value.toFixed(1)}%
+                            </Badge>
+                          ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </TabsContent>
+
+                <TabsContent value="llm-analysis" className="space-y-3">
+                  <InsightTabsPanel
+                    title="Follow-up Intelligence Breakdown"
+                    buckets={[
+                      {
+                        key: "why-followup",
+                        label: "Why Follow-up",
+                        items: followup?.llmInsights?.whyUsersFollowUp || [],
+                      },
+                      {
+                        key: "unresolved",
+                        label: "Unresolved",
+                        items: followup?.llmInsights?.unresolvedPatterns || [],
+                      },
+                      {
+                        key: "repairs",
+                        label: "Repairs",
+                        items: followup?.llmInsights?.repairOpportunities || [],
+                      },
+                      {
+                        key: "actions",
+                        label: "Actions",
+                        items: followup?.llmInsights?.actionHints || [],
+                      },
+                    ]}
+                    emptyText="No LLM follow-up insights available yet."
+                  />
+                </TabsContent>
+              </Tabs>
             </Card>
           </div>
         </TabsContent>
@@ -567,96 +659,131 @@ export function AnalysisResults({ run, isStreaming = false }: AnalysisResultsPro
           <div className="grid gap-5 xl:grid-cols-2">
             <Card className="border-border/60 bg-card px-5 py-5">
               <SectionTitle icon={<Wrench className="h-4 w-4" />} title="Tool Diagnostics" />
-              <div className="mt-4 space-y-3">
-                <div className="grid gap-2 sm:grid-cols-3">
-                  <MetricChip
-                    label="Routing Recall"
-                    value={formatPercent(tools?.routingAssessment?.routingRecall)}
-                  />
-                  <MetricChip
-                    label="Routing Precision"
-                    value={formatPercent(tools?.routingAssessment?.routingPrecision)}
-                  />
-                  <MetricChip
-                    label="Arbitrary Tool Calls"
-                    value={formatPercent(tools?.routingAssessment?.arbitraryCallRate)}
-                  />
-                </div>
-                <div className="rounded-sm border border-border/55 bg-surface-2/20 px-3 py-2 text-xs text-muted-foreground">
-                  Expected Tool Traces:{" "}
-                  <span className="font-medium text-foreground">{tools?.routingAssessment?.expectedToolTraces ?? 0}</span>{" "}
-                  | Called:{" "}
-                  <span className="font-medium text-foreground">{tools?.routingAssessment?.expectedAndCalled ?? 0}</span>{" "}
-                  | Missed:{" "}
-                  <span className="font-medium text-foreground">{tools?.routingAssessment?.expectedButMissed ?? 0}</span>{" "}
-                  | Called Without Need:{" "}
-                  <span className="font-medium text-foreground">{tools?.routingAssessment?.calledWithoutNeed ?? 0}</span>
-                </div>
+              <Tabs defaultValue="routing" className="mt-4 space-y-3">
+                <TabsList
+                  variant="line"
+                  className="h-auto w-full justify-start gap-1 overflow-x-auto border-b border-border/50 bg-transparent p-0 pb-2"
+                >
+                  <TabsTrigger value="routing" className="h-8 flex-none rounded-sm px-3 text-xs font-medium">
+                    Routing
+                  </TabsTrigger>
+                  <TabsTrigger value="effectiveness" className="h-8 flex-none rounded-sm px-3 text-xs font-medium">
+                    Effectiveness
+                  </TabsTrigger>
+                  <TabsTrigger value="catalog" className="h-8 flex-none rounded-sm px-3 text-xs font-medium">
+                    Tool Catalog
+                  </TabsTrigger>
+                </TabsList>
 
-                <BarList
-                  title="Tools Solving Users Most"
-                  items={topResolvedToolBars}
-                  formatter={(value) => `${value.toFixed(1)}%`}
-                />
-
-                <BarList
-                  title="Underperforming Tool Patterns"
-                  items={underperformingToolBars}
-                  formatter={(value) => `${value.toFixed(1)}`}
-                />
-
-                {(tools?.tools || []).length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No tool call data in this run.</p>
-                ) : (
-                  tools?.tools.slice(0, 8).map((tool) => (
-                    <div key={tool.toolName} className="rounded-sm border border-border/55 bg-surface-2/20 px-3 py-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="truncate text-sm font-medium text-foreground">{tool.toolName}</p>
-                        <p className="text-xs text-muted-foreground">{tool.calls} calls</p>
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Success {formatPercent(tool.likelySuccessRate)} | Retries {tool.retries} | Avg latency {formatMetricNumber(tool.avgLatencyMs, " ms")}
-                      </p>
-                    </div>
-                  ))
-                )}
-                {(toolDiagnostics?.systemicIssues || []).slice(0, 3).map((issue) => (
-                  <div key={issue.title} className="rounded-sm border border-border/55 bg-surface-2/20 px-3 py-2">
-                    <p className="text-xs font-semibold text-foreground">{issue.title}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{truncateText(issue.detail, 180)}</p>
+                <TabsContent value="routing" className="space-y-3">
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <MetricChip
+                      label="Routing Recall"
+                      value={formatPercent(tools?.routingAssessment?.routingRecall)}
+                    />
+                    <MetricChip
+                      label="Routing Precision"
+                      value={formatPercent(tools?.routingAssessment?.routingPrecision)}
+                    />
+                    <MetricChip
+                      label="Arbitrary Tool Calls"
+                      value={formatPercent(tools?.routingAssessment?.arbitraryCallRate)}
+                    />
                   </div>
-                ))}
-              </div>
+                  <div className="rounded-sm border border-border/55 bg-surface-2/20 px-3 py-2 text-xs text-muted-foreground">
+                    Expected Tool Traces:{" "}
+                    <span className="font-medium text-foreground">{tools?.routingAssessment?.expectedToolTraces ?? 0}</span>{" "}
+                    | Called:{" "}
+                    <span className="font-medium text-foreground">{tools?.routingAssessment?.expectedAndCalled ?? 0}</span>{" "}
+                    | Missed:{" "}
+                    <span className="font-medium text-foreground">{tools?.routingAssessment?.expectedButMissed ?? 0}</span>{" "}
+                    | Called Without Need:{" "}
+                    <span className="font-medium text-foreground">{tools?.routingAssessment?.calledWithoutNeed ?? 0}</span>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="effectiveness" className="space-y-3">
+                  <BarList
+                    title="Tools Solving Users Most"
+                    items={topResolvedToolBars}
+                    formatter={(value) => `${value.toFixed(1)}%`}
+                  />
+                  <BarList
+                    title="Underperforming Tool Patterns"
+                    items={underperformingToolBars}
+                    formatter={(value) => `${value.toFixed(1)}`}
+                  />
+                </TabsContent>
+
+                <TabsContent value="catalog" className="space-y-3">
+                  {(tools?.tools || []).length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No tool call data in this run.</p>
+                  ) : (
+                    tools?.tools.slice(0, 8).map((tool) => (
+                      <div key={tool.toolName} className="rounded-sm border border-border/55 bg-surface-2/20 px-3 py-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="truncate text-sm font-medium text-foreground">{tool.toolName}</p>
+                          <p className="text-xs text-muted-foreground">{tool.calls} calls</p>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Success {formatPercent(tool.likelySuccessRate)} | Retries {tool.retries} | Avg latency{" "}
+                          {formatMetricNumber(tool.avgLatencyMs, " ms")}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                  {(toolDiagnostics?.systemicIssues || []).slice(0, 3).map((issue) => (
+                    <div key={issue.title} className="rounded-sm border border-border/55 bg-surface-2/20 px-3 py-2">
+                      <p className="text-xs font-semibold text-foreground">{issue.title}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{truncateText(issue.detail, 180)}</p>
+                    </div>
+                  ))}
+                </TabsContent>
+              </Tabs>
             </Card>
 
             <Card className="border-border/60 bg-card px-5 py-5">
               <SectionTitle icon={<Clock3 className="h-4 w-4" />} title="Quality Intelligence" />
-              <div className="mt-4 space-y-4">
-                <InsightHeader
-                  title="LLM Read"
-                  headline={quality?.llmInsights?.headline}
-                  fallback="No LLM quality insight available yet."
-                />
+              <Tabs defaultValue="signals" className="mt-4 space-y-3">
+                <TabsList
+                  variant="line"
+                  className="h-auto w-full justify-start gap-1 overflow-x-auto border-b border-border/50 bg-transparent p-0 pb-2"
+                >
+                  <TabsTrigger value="signals" className="h-8 flex-none rounded-sm px-3 text-xs font-medium">
+                    Signals
+                  </TabsTrigger>
+                  <TabsTrigger value="trends" className="h-8 flex-none rounded-sm px-3 text-xs font-medium">
+                    Trends
+                  </TabsTrigger>
+                  <TabsTrigger value="llm-analysis" className="h-8 flex-none rounded-sm px-3 text-xs font-medium">
+                    LLM Analysis
+                  </TabsTrigger>
+                </TabsList>
 
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <MetricChip
-                    label="Judge Sample Traces"
-                    value={formatMetricNumber(quality?.analyzedTraceCount || 0)}
+                <TabsContent value="signals" className="space-y-3">
+                  <InsightHeader
+                    title="LLM Read"
+                    headline={quality?.llmInsights?.headline}
+                    fallback="No LLM quality insight available yet."
                   />
-                  <MetricChip
-                    label="Recovery Rate"
-                    value={formatPercent(quality?.reliability?.recoveryRate || 0)}
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <MetricChip
+                      label="Judge Sample Traces"
+                      value={formatMetricNumber(quality?.analyzedTraceCount || 0)}
+                    />
+                    <MetricChip
+                      label="Recovery Rate"
+                      value={formatPercent(quality?.reliability?.recoveryRate || 0)}
+                    />
+                  </div>
+                  <BarList
+                    title="Finding Severity Distribution"
+                    items={severityBars}
+                    formatter={(value) => `${value.toFixed(0)}`}
                   />
-                </div>
+                </TabsContent>
 
-                <BarList
-                  title="Finding Severity Distribution"
-                  items={severityBars}
-                  formatter={(value) => `${value.toFixed(0)}`}
-                />
-
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dimension Trend</p>
+                <TabsContent value="trends" className="space-y-2">
                   {Object.entries(quality?.dimensionAverages || {})
                     .slice(0, 8)
                     .map(([dimension, score]) => {
@@ -674,53 +801,73 @@ export function AnalysisResults({ run, isStreaming = false }: AnalysisResultsPro
                         </div>
                       );
                     })}
-                </div>
+                </TabsContent>
 
-                <InsightList
-                  title="Root Causes"
-                  items={quality?.llmInsights?.rootCauses || []}
-                />
-                <InsightList
-                  title="Reliability Risks"
-                  items={quality?.llmInsights?.reliabilityRisks || []}
-                />
-                <InsightList
-                  title="Cost / Latency Drivers"
-                  items={quality?.llmInsights?.costLatencyDrivers || []}
-                />
-                <InsightList
-                  title="Action Hints"
-                  items={quality?.llmInsights?.actionHints || []}
-                />
-              </div>
+                <TabsContent value="llm-analysis" className="space-y-3">
+                  <InsightTabsPanel
+                    title="Quality Intelligence Breakdown"
+                    buckets={[
+                      { key: "causes", label: "Root Causes", items: quality?.llmInsights?.rootCauses || [] },
+                      {
+                        key: "reliability",
+                        label: "Reliability",
+                        items: quality?.llmInsights?.reliabilityRisks || [],
+                      },
+                      {
+                        key: "efficiency",
+                        label: "Cost & Latency",
+                        items: quality?.llmInsights?.costLatencyDrivers || [],
+                      },
+                      { key: "actions", label: "Actions", items: quality?.llmInsights?.actionHints || [] },
+                    ]}
+                    emptyText="No LLM quality insights available yet."
+                  />
+                </TabsContent>
+              </Tabs>
             </Card>
           </div>
         </TabsContent>
 
         <TabsContent value="actions" className="space-y-5">
-          <div className="grid gap-5 lg:grid-cols-2">
-            <Card className="border-border/60 bg-card px-5 py-5">
-              <SectionTitle icon={<ListChecks className="h-4 w-4" />} title="Action Plan" />
-              <div className="mt-4 space-y-3">
+          <Card className="border-border/60 bg-card px-5 py-5">
+            <SectionTitle icon={<ListChecks className="h-4 w-4" />} title="Execution Plan" />
+            <Tabs defaultValue="actions" className="mt-4 space-y-3">
+              <TabsList
+                variant="line"
+                className="h-auto w-full justify-start gap-1 overflow-x-auto border-b border-border/50 bg-transparent p-0 pb-2"
+              >
+                <TabsTrigger value="actions" className="h-8 flex-none rounded-sm px-3 text-xs font-medium">
+                  Action Plan
+                </TabsTrigger>
+                <TabsTrigger value="experiments" className="h-8 flex-none rounded-sm px-3 text-xs font-medium">
+                  Experiments
+                </TabsTrigger>
+                <TabsTrigger value="recommendations" className="h-8 flex-none rounded-sm px-3 text-xs font-medium">
+                  Recommendations
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="actions" className="space-y-3">
                 {(actionPlan?.items || []).length === 0 ? (
                   <p className="text-sm text-muted-foreground">No action plan items generated.</p>
                 ) : (
                   actionPlan?.items.slice(0, 10).map((item) => (
                     <div key={`${item.priority}-${item.title}`} className="rounded-sm border border-border/55 bg-surface-2/20 px-3 py-3">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-semibold text-foreground">P{item.priority} - {item.title}</p>
-                        <span className={cn("text-xs font-semibold uppercase", severityClass(item.severity))}>{item.severity}</span>
+                        <p className="text-sm font-semibold text-foreground">
+                          P{item.priority} - {item.title}
+                        </p>
+                        <span className={cn("text-xs font-semibold uppercase", severityClass(item.severity))}>
+                          {item.severity}
+                        </span>
                       </div>
                       <p className="mt-1 text-sm text-muted-foreground">{item.why}</p>
                     </div>
                   ))
                 )}
-              </div>
-            </Card>
+              </TabsContent>
 
-            <Card className="border-border/60 bg-card px-5 py-5">
-              <SectionTitle icon={<Beaker className="h-4 w-4" />} title="Experiments" />
-              <div className="mt-4 space-y-3">
+              <TabsContent value="experiments" className="space-y-3">
                 {(experiments?.items || []).length === 0 ? (
                   <p className="text-sm text-muted-foreground">No experiments proposed.</p>
                 ) : (
@@ -734,30 +881,31 @@ export function AnalysisResults({ run, isStreaming = false }: AnalysisResultsPro
                     </div>
                   ))
                 )}
-              </div>
-            </Card>
-          </div>
+              </TabsContent>
 
-          <Card className="border-border/60 bg-card px-5 py-5">
-            <SectionTitle icon={<AlertTriangle className="h-4 w-4" />} title="Recommendations" />
-            <div className="mt-4 space-y-3">
-              {(recommendations?.items || []).length === 0 ? (
-                <div className="flex items-center gap-2 rounded-sm border border-border/55 bg-surface-2/20 px-3 py-3 text-sm text-muted-foreground">
-                  <CheckCircle2 className="h-4 w-4 text-primary" />
-                  No recommendations generated.
-                </div>
-              ) : (
-                recommendations?.items.map((item) => (
-                  <div key={`${item.priority}-${item.title}`} className="rounded-sm border border-border/55 bg-surface-2/20 px-3 py-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-foreground">P{item.priority} - {item.title}</p>
-                      <span className={`text-xs font-semibold uppercase ${severityClass(item.severity)}`}>{item.severity}</span>
-                    </div>
-                    <p className="mt-1 text-sm text-muted-foreground">{item.detail}</p>
+              <TabsContent value="recommendations" className="space-y-3">
+                {(recommendations?.items || []).length === 0 ? (
+                  <div className="flex items-center gap-2 rounded-sm border border-border/55 bg-surface-2/20 px-3 py-3 text-sm text-muted-foreground">
+                    <CheckCircle2 className="h-4 w-4 text-primary" />
+                    No recommendations generated.
                   </div>
-                ))
-              )}
-            </div>
+                ) : (
+                  recommendations?.items.map((item) => (
+                    <div key={`${item.priority}-${item.title}`} className="rounded-sm border border-border/55 bg-surface-2/20 px-3 py-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-foreground">
+                          P{item.priority} - {item.title}
+                        </p>
+                        <span className={cn("text-xs font-semibold uppercase", severityClass(item.severity))}>
+                          {item.severity}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">{item.detail}</p>
+                    </div>
+                  ))
+                )}
+              </TabsContent>
+            </Tabs>
           </Card>
         </TabsContent>
       </Tabs>
@@ -818,21 +966,70 @@ function InsightHeader({
   );
 }
 
-function InsightList({ title, items }: { title: string; items: string[] }) {
-  const cleaned = items.map((item) => truncateText(item, 180)).filter((item) => item.length > 0).slice(0, 3);
+function InsightTabsPanel({
+  title,
+  buckets,
+  emptyText,
+}: {
+  title: string;
+  buckets: InsightBucket[];
+  emptyText: string;
+}) {
+  const normalized = buckets
+    .map((bucket) => ({
+      ...bucket,
+      items: (bucket.items || [])
+        .map((item) => truncateText(item, 180))
+        .filter((item) => item.length > 0)
+        .slice(0, 6),
+    }))
+    .filter((bucket) => bucket.items.length > 0);
 
-  if (cleaned.length === 0) return null;
+  if (normalized.length === 0) {
+    return (
+      <div className="rounded-sm border border-border/55 bg-surface-2/20 px-3 py-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{emptyText}</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-1.5 rounded-sm border border-border/55 bg-surface-2/20 px-3 py-3">
+    <div className="rounded-sm border border-border/55 bg-surface-2/20 px-3 py-3">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
-      <ul className="space-y-1 text-sm text-foreground">
-        {cleaned.map((item) => (
-          <li key={item} className="leading-relaxed text-sm text-muted-foreground">
-            - {item}
-          </li>
+      <Tabs defaultValue={normalized[0].key} className="mt-2 space-y-2">
+        <TabsList
+          variant="line"
+          className="h-auto w-full justify-start gap-1 overflow-x-auto border-b border-border/50 bg-transparent p-0 pb-1"
+        >
+          {normalized.map((bucket) => (
+            <TabsTrigger key={bucket.key} value={bucket.key} className="h-7 flex-none rounded-sm px-2.5 text-[11px] font-medium">
+              {bucket.label}
+              <span className="ml-1 rounded-sm border border-border/60 bg-surface-2/40 px-1.5 py-0.5 text-[10px] leading-none">
+                {bucket.items.length}
+              </span>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
+        {normalized.map((bucket) => (
+          <TabsContent key={bucket.key} value={bucket.key} className="mt-0">
+            <div className="grid gap-2 sm:grid-cols-2">
+              {bucket.items.map((item, index) => (
+                <div
+                  key={`${bucket.key}-${item}`}
+                  className="flex items-start gap-2 rounded-sm border border-border/50 bg-background/60 px-2.5 py-2"
+                >
+                  <span className="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full border border-border/60 bg-surface-2/40 text-[10px] font-semibold text-muted-foreground">
+                    {index + 1}
+                  </span>
+                  <p className="text-sm leading-relaxed text-muted-foreground">{item}</p>
+                </div>
+              ))}
+            </div>
+          </TabsContent>
         ))}
-      </ul>
+      </Tabs>
     </div>
   );
 }
@@ -854,11 +1051,16 @@ function CompactPoints({
       {cleaned.length === 0 ? (
         <p className="text-xs text-muted-foreground">{emptyLabel}</p>
       ) : (
-        <ul className="space-y-1 text-xs text-muted-foreground">
-          {cleaned.map((item) => (
-            <li key={item}>- {item}</li>
+        <div className="space-y-1.5">
+          {cleaned.map((item, index) => (
+            <div key={item} className="flex items-start gap-2 rounded-sm border border-border/50 bg-background/50 px-2 py-1.5">
+              <span className="mt-0.5 inline-flex h-4 w-4 flex-none items-center justify-center rounded-full border border-border/60 bg-surface-2/40 text-[10px] font-semibold text-muted-foreground">
+                {index + 1}
+              </span>
+              <p className="text-xs leading-relaxed text-muted-foreground">{item}</p>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );
