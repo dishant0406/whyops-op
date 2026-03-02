@@ -7,7 +7,10 @@ import { AgentDetailHeader } from "@/components/agents/agent-detail-header";
 import { AgentDetailStats } from "@/components/agents/agent-detail-stats";
 import { AgentTraceCountTimeline } from "@/components/agents/agent-trace-count-timeline";
 import { AgentTraceTimeline } from "@/components/agents/agent-trace-timeline";
+import { AgentVersionConfigTab } from "@/components/agents/agent-version-config-tab";
+import { AgentAnalysisTab } from "@/components/agents/analysis/AgentAnalysisTab";
 import { RecentTracesTable } from "@/components/agents/recent-traces-table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DEFAULT_TIMELINE_PERIOD } from "@/constants/agent-timelines";
 import { useAgentsStore } from "@/stores/agentsStore";
 import { useConfigStore } from "@/stores/configStore";
@@ -23,6 +26,7 @@ export function AgentDetailsPage() {
   const [traceCountPeriod, setTraceCountPeriod] = useState(DEFAULT_TIMELINE_PERIOD);
   const [isSuccessRateLoading, setIsSuccessRateLoading] = useState(false);
   const [isTraceCountLoading, setIsTraceCountLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
     if (config?.analyseBaseUrl && agentId) {
@@ -85,26 +89,47 @@ export function AgentDetailsPage() {
   return (
     <div className="space-y-6 p-8">
       <AgentDetailHeader agent={currentAgent} />
-      <AgentDetailStats agent={currentAgent} />
-      <div className="flex flex-col gap-6 lg:flex-row">
-        <div className="w-full lg:flex-1">
-          <AgentTraceTimeline
-            successPercentage={currentAgent.successPercentage as Record<string, number> | undefined}
-            successRatePeriod={successRatePeriod}
-            onPeriodChange={handleSuccessRatePeriodChange}
-            isLoading={isSuccessRateLoading || isLoading}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="w-full max-w-md">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="analysis">Analysis</TabsTrigger>
+          <TabsTrigger value="configuration">Configuration</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          <AgentDetailStats agent={currentAgent} />
+          <div className="flex flex-col gap-6 lg:flex-row">
+            <div className="w-full lg:flex-1">
+              <AgentTraceTimeline
+                successPercentage={currentAgent.successPercentage as Record<string, number> | undefined}
+                successRatePeriod={successRatePeriod}
+                onPeriodChange={handleSuccessRatePeriodChange}
+                isLoading={isSuccessRateLoading || isLoading}
+              />
+            </div>
+            <div className="w-full lg:flex-1">
+              <AgentTraceCountTimeline
+                traceCounts={currentAgent.traceCounts as Record<string, number> | undefined}
+                traceCountPeriod={traceCountPeriod}
+                onPeriodChange={handleTraceCountPeriodChange}
+                isLoading={isTraceCountLoading || isLoading}
+              />
+            </div>
+          </div>
+          <RecentTracesTable agentId={agentId} />
+        </TabsContent>
+
+        <TabsContent value="configuration">
+          <AgentVersionConfigTab
+            agentId={agentId}
+            preferredVersionId={currentAgent.latestVersion?.id}
           />
-        </div>
-        <div className="w-full lg:flex-1">
-          <AgentTraceCountTimeline
-            traceCounts={currentAgent.traceCounts as Record<string, number> | undefined}
-            traceCountPeriod={traceCountPeriod}
-            onPeriodChange={handleTraceCountPeriodChange}
-            isLoading={isTraceCountLoading || isLoading}
-          />
-        </div>
-      </div>
-      <RecentTracesTable agentId={agentId} />
+        </TabsContent>
+
+        <TabsContent value="analysis">
+          <AgentAnalysisTab key={agentId} agentId={agentId} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
