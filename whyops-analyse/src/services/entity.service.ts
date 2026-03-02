@@ -209,4 +209,66 @@ export class EntityService {
       return null;
     }
   }
+
+  static async updateAgentSamplingRate(input: {
+    userId: string;
+    projectId: string;
+    environmentId: string;
+    agentId: string;
+    samplingRate: number;
+  }): Promise<{
+    agent: Agent;
+    latestVersion: Entity;
+    updatedVersions: number;
+  } | null> {
+    try {
+      const agent = await Agent.findOne({
+        where: {
+          id: input.agentId,
+          userId: input.userId,
+          projectId: input.projectId,
+          environmentId: input.environmentId,
+        },
+      });
+
+      if (!agent) {
+        return null;
+      }
+
+      const nextRate = Math.max(0, Math.min(1, Number(input.samplingRate.toFixed(2))));
+
+      const [updatedVersions] = await Entity.update(
+        { samplingRate: nextRate },
+        { where: { agentId: agent.id } }
+      );
+
+      const latestVersion = await Entity.findOne({
+        where: { agentId: agent.id },
+        order: [['createdAt', 'DESC']],
+      });
+
+      if (!latestVersion) {
+        return null;
+      }
+
+      return {
+        agent,
+        latestVersion,
+        updatedVersions,
+      };
+    } catch (error) {
+      logger.error(
+        {
+          error,
+          userId: input.userId,
+          projectId: input.projectId,
+          environmentId: input.environmentId,
+          agentId: input.agentId,
+          samplingRate: input.samplingRate,
+        },
+        'Failed to update agent sampling rate'
+      );
+      throw error;
+    }
+  }
 }

@@ -41,6 +41,7 @@ export interface ThreadListItem {
   threadId: string;
   userId: string;
   providerId?: string;
+  agentId?: string;
   entityId?: string;
   entityName?: string;
   model?: string;
@@ -58,6 +59,7 @@ interface ThreadListRow {
   threadId: string;
   userId: string;
   providerId?: string;
+  agentId?: string;
   entityId?: string;
   entityName?: string;
   model?: string;
@@ -93,6 +95,7 @@ export interface ThreadDetail {
   threadId: string;
   userId: string;
   providerId?: string;
+  agentId?: string;
   entityId?: string;
   entityName?: string;
   lastActivity: Date;
@@ -198,6 +201,7 @@ export class ThreadService {
         `t.id AS "threadId"`,
         `t.user_id AS "userId"`,
         `COALESCE(t.provider_id, le.provider_id) AS "providerId"`,
+        `a.id AS "agentId"`,
         `t.entity_id AS "entityId"`,
         `e.name AS "entityName"`,
         `COALESCE(
@@ -290,6 +294,7 @@ export class ThreadService {
         threadId: row.threadId,
         userId: row.userId,
         providerId: row.providerId,
+        agentId: row.agentId,
         entityId: row.entityId,
         entityName: row.entityName,
         model: row.model,
@@ -354,7 +359,7 @@ export class ThreadService {
           {
             model: Entity,
             as: 'entity',
-            attributes: ['id', 'name', 'metadata'],
+            attributes: ['id', 'agentId', 'name', 'metadata'],
             required: false,
           },
         ],
@@ -515,6 +520,7 @@ export class ThreadService {
         threadId: trace.id,
         userId: trace.userId,
         providerId: trace.providerId,
+        agentId: (trace as any).entity?.agentId,
         entityId: trace.entityId,
         entityName: (trace as any).entity?.name,
         lastActivity: lastEventTimestamp,

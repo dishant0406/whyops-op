@@ -12,6 +12,12 @@ interface DashboardDailySuccessRow {
   errorEvents: string | number;
 }
 
+interface DashboardPeriodStatsRow {
+  totalEvents: string | number;
+  errorEvents: string | number;
+  avgLatency: string | number | null;
+}
+
 const providerExpr = `COALESCE(NULLIF("metadata"->>'provider', ''), 'unknown')`;
 const modelExpr = `COALESCE(NULLIF("metadata"->>'model', ''), 'unknown')`;
 const totalTokensExpr = `
@@ -287,6 +293,84 @@ app.get('/dashboard', async (c) => {
       ? `${(avgLatencyMs / 1000).toFixed(1)}s`
       : `${Math.round(avgLatencyMs)}ms`;
 
+    // Calculate trend deltas: current 7-day window vs previous 7-day window
+    const now = new Date();
+    const currentWindowStart = new Date(now);
+    currentWindowStart.setDate(currentWindowStart.getDate() - 6);
+    currentWindowStart.setHours(0, 0, 0, 0);
+
+    const previousWindowStart = new Date(currentWindowStart);
+    previousWindowStart.setDate(previousWindowStart.getDate() - 7);
+    const previousWindowEnd = new Date(currentWindowStart);
+
+    const loadPeriodStats = async (from: Date, to: Date) => {
+      const rows = await LLMEvent.sequelize!.query<DashboardPeriodStatsRow>(
+        `
+          SELECT
+            COUNT(e.id) AS "totalEvents",
+            COALESCE(SUM(CASE WHEN e.event_type = 'error' THEN 1 ELSE 0 END), 0) AS "errorEvents",
+            AVG(${latencyMsExprEvents}) AS "avgLatency"
+          FROM trace_events e
+          JOIN traces t ON t.id = e.trace_id
+          JOIN entities en ON en.id = t.entity_id
+          JOIN agents a ON a.id = en.agent_id
+          WHERE a.user_id = :userId
+            AND a.project_id = :projectId
+            AND a.environment_id = :environmentId
+            AND e.timestamp >= :from
+            AND e.timestamp < :to
+        `,
+        {
+          replacements: {
+            ...baseReplacements,
+            from,
+            to,
+          },
+          type: QueryTypes.SELECT,
+        }
+      );
+      return rows[0];
+    };
+
+    const [currentPeriodStats, previousPeriodStats] = await Promise.all([
+      loadPeriodStats(currentWindowStart, now),
+      loadPeriodStats(previousWindowStart, previousWindowEnd),
+    ]);
+
+    const currentPeriodTotalEvents = Number(currentPeriodStats?.totalEvents || 0);
+    const currentPeriodErrorEvents = Number(currentPeriodStats?.errorEvents || 0);
+    const previousPeriodTotalEvents = Number(previousPeriodStats?.totalEvents || 0);
+    const previousPeriodErrorEvents = Number(previousPeriodStats?.errorEvents || 0);
+
+    const currentPeriodSuccessRate = currentPeriodTotalEvents > 0
+      ? ((currentPeriodTotalEvents - currentPeriodErrorEvents) / currentPeriodTotalEvents) * 100
+      : null;
+    const previousPeriodSuccessRate = previousPeriodTotalEvents > 0
+      ? ((previousPeriodTotalEvents - previousPeriodErrorEvents) / previousPeriodTotalEvents) * 100
+      : null;
+
+    const currentPeriodAvgLatencyMs =
+      currentPeriodStats?.avgLatency === null || currentPeriodStats?.avgLatency === undefined
+        ? null
+        : Number(currentPeriodStats.avgLatency);
+    const previousPeriodAvgLatencyMs =
+      previousPeriodStats?.avgLatency === null || previousPeriodStats?.avgLatency === undefined
+        ? null
+        : Number(previousPeriodStats.avgLatency);
+
+    const successRateDelta =
+      currentPeriodSuccessRate !== null && previousPeriodSuccessRate !== null
+        ? Math.round((currentPeriodSuccessRate - previousPeriodSuccessRate) * 10) / 10
+        : null;
+
+    const avgLatencyDeltaMs =
+      currentPeriodAvgLatencyMs !== null &&
+      previousPeriodAvgLatencyMs !== null &&
+      Number.isFinite(currentPeriodAvgLatencyMs) &&
+      Number.isFinite(previousPeriodAvgLatencyMs)
+        ? Math.round(currentPeriodAvgLatencyMs - previousPeriodAvgLatencyMs)
+        : null;
+
     // Get success rate timeline for chart (last 7 days)
     const since = new Date();
     since.setDate(since.getDate() - 6);
@@ -376,6 +460,8 @@ app.get('/dashboard', async (c) => {
       activeTraces,
       successRate,
       avgLatency,
+      successRateDelta,
+      avgLatencyDeltaMs,
       timeline: timelineData,
       agentsUsage,
     });

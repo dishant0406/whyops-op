@@ -270,6 +270,13 @@ const entityInitSchema = z.object({
   }),
 });
 
+const updateSamplingRateSchema = z.object({
+  samplingRate: z
+    .number({ required_error: 'samplingRate is required' })
+    .min(0, 'samplingRate must be >= 0')
+    .max(1, 'samplingRate must be <= 1'),
+});
+
 app.post('/init', zValidator('json', entityInitSchema), async (c) => {
   const data = c.req.valid('json');
   const auth = c.get('whyopsAuth');
@@ -306,6 +313,44 @@ app.post('/init', zValidator('json', entityInitSchema), async (c) => {
   } catch (error: any) {
     logger.error({ error, data }, 'Failed to init entity');
     return c.json({ success: false, error: 'Failed to initialize agent' }, 500);
+  }
+});
+
+// PATCH /api/entities/:id/sampling-rate
+app.patch('/:id/sampling-rate', zValidator('json', updateSamplingRateSchema), async (c) => {
+  const auth = c.get('whyopsAuth');
+
+  if (!auth) {
+    return c.json({ success: false, error: 'Unauthorized: authentication required' }, 401);
+  }
+
+  try {
+    const id = c.req.param('id');
+    const data = c.req.valid('json');
+
+    const result = await EntityService.updateAgentSamplingRate({
+      userId: auth.userId,
+      projectId: auth.projectId,
+      environmentId: auth.environmentId,
+      agentId: id,
+      samplingRate: data.samplingRate,
+    });
+
+    if (!result) {
+      return c.json({ success: false, error: 'Agent not found' }, 404);
+    }
+
+    return c.json({
+      success: true,
+      agentId: result.agent.id,
+      samplingRate: Number(result.latestVersion.samplingRate),
+      updatedVersions: result.updatedVersions,
+      latestVersionId: result.latestVersion.id,
+      updatedAt: result.latestVersion.updatedAt.toISOString(),
+    });
+  } catch (error: any) {
+    logger.error({ error }, 'Failed to update agent sampling rate');
+    return c.json({ success: false, error: 'Failed to update sampling rate' }, 500);
   }
 });
 
