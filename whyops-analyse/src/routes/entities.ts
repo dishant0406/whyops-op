@@ -277,6 +277,14 @@ const updateSamplingRateSchema = z.object({
     .max(1, 'samplingRate must be <= 1'),
 });
 
+const versionIdParamsSchema = z.object({
+  versionId: z.string().uuid('Invalid versionId'),
+});
+
+const agentIdParamsSchema = z.object({
+  id: z.string().uuid('Invalid agent id'),
+});
+
 app.post('/init', zValidator('json', entityInitSchema), async (c) => {
   const data = c.req.valid('json');
   const auth = c.get('whyopsAuth');
@@ -351,6 +359,111 @@ app.patch('/:id/sampling-rate', zValidator('json', updateSamplingRateSchema), as
   } catch (error: any) {
     logger.error({ error }, 'Failed to update agent sampling rate');
     return c.json({ success: false, error: 'Failed to update sampling rate' }, 500);
+  }
+});
+
+// GET /api/entities/:id/version-ids - list entity version ids for an agent
+app.get('/:id/version-ids', zValidator('param', agentIdParamsSchema), async (c) => {
+  const auth = c.get('whyopsAuth');
+
+  if (!auth) {
+    return c.json({ success: false, error: 'Unauthorized: authentication required' }, 401);
+  }
+
+  try {
+    const { id } = c.req.valid('param');
+
+    const agent = await Agent.findOne({
+      where: {
+        id,
+        userId: auth.userId,
+        projectId: auth.projectId,
+        environmentId: auth.environmentId,
+      },
+      attributes: ['id', 'name'],
+    });
+
+    if (!agent) {
+      return c.json({ success: false, error: 'Agent not found' }, 404);
+    }
+
+    const versions = await Entity.findAll({
+      where: {
+        agentId: agent.id,
+        userId: auth.userId,
+        projectId: auth.projectId,
+        environmentId: auth.environmentId,
+      },
+      attributes: ['id', 'hash', 'createdAt', 'updatedAt'],
+      order: [['createdAt', 'DESC']],
+    });
+
+    return c.json({
+      success: true,
+      agentId: agent.id,
+      versionIds: versions.map((version) => version.id),
+      versions: versions.map((version) => ({
+        id: version.id,
+        hash: version.hash,
+        createdAt: version.createdAt.toISOString(),
+        updatedAt: version.updatedAt.toISOString(),
+      })),
+    });
+  } catch (error: any) {
+    logger.error({ error }, 'Failed to fetch entity version ids');
+    return c.json({ success: false, error: 'Failed to fetch entity version ids' }, 500);
+  }
+});
+
+// GET /api/entities/versions/:versionId - get details for a single entity version
+app.get('/versions/:versionId', zValidator('param', versionIdParamsSchema), async (c) => {
+  const auth = c.get('whyopsAuth');
+
+  if (!auth) {
+    return c.json({ success: false, error: 'Unauthorized: authentication required' }, 401);
+  }
+
+  try {
+    const { versionId } = c.req.valid('param');
+
+    const version = await Entity.findOne({
+      where: {
+        id: versionId,
+        userId: auth.userId,
+        projectId: auth.projectId,
+        environmentId: auth.environmentId,
+      },
+      attributes: ['id', 'agentId', 'name', 'hash', 'metadata', 'samplingRate', 'createdAt', 'updatedAt'],
+    });
+
+    if (!version) {
+      return c.json({ success: false, error: 'Entity version not found' }, 404);
+    }
+
+    const metadata = (version.metadata && typeof version.metadata === 'object') ? version.metadata : {};
+    const systemPrompt = typeof (metadata as any).systemPrompt === 'string'
+      ? (metadata as any).systemPrompt
+      : '';
+    const tools = Array.isArray((metadata as any).tools) ? (metadata as any).tools : [];
+
+    return c.json({
+      success: true,
+      version: {
+        id: version.id,
+        agentId: version.agentId,
+        name: version.name,
+        hash: version.hash,
+        samplingRate: Number(version.samplingRate),
+        systemPrompt,
+        tools,
+        metadata,
+        createdAt: version.createdAt.toISOString(),
+        updatedAt: version.updatedAt.toISOString(),
+      },
+    });
+  } catch (error: any) {
+    logger.error({ error }, 'Failed to fetch entity version detail');
+    return c.json({ success: false, error: 'Failed to fetch entity version detail' }, 500);
   }
 });
 
