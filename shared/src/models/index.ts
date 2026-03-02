@@ -1,4 +1,8 @@
 import Agent from './Agent';
+import AgentAnalysisConfig from './AgentAnalysisConfig';
+import AgentAnalysisFinding from './AgentAnalysisFinding';
+import AgentAnalysisRun from './AgentAnalysisRun';
+import AgentAnalysisSection from './AgentAnalysisSection';
 import AnalysisExperiment from './AnalysisExperiment';
 import ApiKey from './ApiKey';
 import Entity from './Entity';
@@ -100,8 +104,27 @@ LLMEvent.belongsTo(Entity, { foreignKey: 'entityId', as: 'entity' });
 Trace.belongsTo(Entity, { foreignKey: 'entityId', as: 'entity' });
 Entity.hasMany(Trace, { foreignKey: 'entityId', as: 'traces' });
 
+Agent.hasMany(AgentAnalysisConfig, { foreignKey: 'agentId', as: 'analysisConfigs' });
+AgentAnalysisConfig.belongsTo(Agent, { foreignKey: 'agentId', as: 'agent' });
+
+AgentAnalysisConfig.hasMany(AgentAnalysisRun, { foreignKey: 'configId', as: 'runs' });
+AgentAnalysisRun.belongsTo(AgentAnalysisConfig, { foreignKey: 'configId', as: 'config' });
+
+Agent.hasMany(AgentAnalysisRun, { foreignKey: 'agentId', as: 'analysisRuns' });
+AgentAnalysisRun.belongsTo(Agent, { foreignKey: 'agentId', as: 'agent' });
+
+AgentAnalysisRun.hasMany(AgentAnalysisSection, { foreignKey: 'runId', as: 'sections' });
+AgentAnalysisSection.belongsTo(AgentAnalysisRun, { foreignKey: 'runId', as: 'run' });
+
+AgentAnalysisRun.hasMany(AgentAnalysisFinding, { foreignKey: 'runId', as: 'findings' });
+AgentAnalysisFinding.belongsTo(AgentAnalysisRun, { foreignKey: 'runId', as: 'run' });
+
 export {
   Agent,
+  AgentAnalysisConfig,
+  AgentAnalysisFinding,
+  AgentAnalysisRun,
+  AgentAnalysisSection,
   AnalysisExperiment,
   ApiKey,
   Entity,
@@ -120,6 +143,10 @@ export {
 export const models = {
   User,
   Agent,
+  AgentAnalysisConfig,
+  AgentAnalysisFinding,
+  AgentAnalysisRun,
+  AgentAnalysisSection,
   AnalysisExperiment,
   Provider,
   ApiKey,

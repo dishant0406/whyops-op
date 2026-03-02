@@ -8,3 +8,21 @@ export {
 } from './prompt-quality.prompt';
 export { toolDescriptionPrompt, TOOL_DESCRIPTION_VERSION } from './tool-description.prompt';
 export { costEfficiencyPrompt, COST_EFFICIENCY_VERSION } from './cost-efficiency.prompt';
+export {
+  agentDimensionAnalysisPrompt,
+  AGENT_DIMENSION_ANALYSIS_VERSION,
+} from './agent-dimension-analysis.prompt';
+export { agentSynthesisPrompt, AGENT_SYNTHESIS_VERSION } from './agent-synthesis.prompt';
+export {
+  agentSectionInsightsPrompt,
+  AGENT_SECTION_INSIGHTS_VERSION,
+} from './agent-section-insights.prompt';
+export {
+  agentOverviewAnalysisPrompt,
+  AGENT_OVERVIEW_ANALYSIS_VERSION,
+} from './agent-overview-analysis.prompt';
+
+export {
+  agentTraceIntentRoutingPrompt,
+  AGENT_TRACE_INTENT_ROUTING_VERSION,
+} from './agent-trace-intent-routing.prompt';

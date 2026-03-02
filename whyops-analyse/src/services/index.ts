@@ -1,3 +1,4 @@
+export * from './agent-analysis.service';
 export * from './analysis.service';
 export * from './entity.service';
 export * from './event.service';

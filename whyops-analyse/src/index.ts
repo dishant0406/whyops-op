@@ -7,6 +7,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger as honoLogger } from 'hono/logger';
 import analyticsRouter from './routes/analytics';
+import agentAnalysesRouter from './routes/agent-analyses';
 import analysesRouter from './routes/analyses';
 import entitiesRouter from './routes/entities';
 import eventsRouter from './routes/events';
@@ -52,6 +53,7 @@ app.route('/api/analytics', analyticsRouter);
 app.route('/api/visualize', visualizeRouter);
 app.route('/api/entities', entitiesRouter);
 app.route('/api/llm-costs', llmCostsRouter);
+app.route('/api/agent-analyses', agentAnalysesRouter);
 
 app.notFound((c) => {
   return c.json({ error: 'Not Found' }, 404);

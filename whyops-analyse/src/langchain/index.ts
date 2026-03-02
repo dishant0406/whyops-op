@@ -23,6 +23,11 @@ export {
   runPromptQualityChain,
   runToolDescriptionChain,
   runCostEfficiencyChain,
+  runAgentDimensionAnalysisChain,
+  runAgentSynthesisChain,
+  runAgentSectionInsightsChain,
+  runAgentOverviewAnalysisChain,
+  runAgentTraceIntentRoutingChain,
 } from './chains';
 
 // Utilities
@@ -35,5 +40,10 @@ export type { PromptQualityInput } from './chains/prompt-quality.chain';
 export type { PromptQualityExecutionOptions } from './chains/prompt-quality.chain';
 export type { ToolDescriptionInput } from './chains/tool-description.chain';
 export type { CostEfficiencyInput } from './chains/cost-efficiency.chain';
+export type { AgentDimensionAnalysisInput } from './chains/agent-dimension-analysis.chain';
+export type { AgentSynthesisInput } from './chains/agent-synthesis.chain';
+export type { AgentSectionInsightsInput } from './chains/agent-section-insights.chain';
+export type { AgentOverviewAnalysisInput } from './chains/agent-overview-analysis.chain';
+export type { AgentTraceIntentRoutingInput } from './chains/agent-trace-intent-routing.chain';
 export type { PromptBlock, SegmentationResult } from './utils/prompt-segmenter';
 export type { ToolDefinition, ToolFilterInput, ToolFilterResult } from './utils/tool-relevance-filter';

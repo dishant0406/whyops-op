@@ -3,3 +3,24 @@ export { runToolChoiceChain, type ToolChoiceInput } from './tool-choice.chain';
 export { runPromptQualityChain, type PromptQualityInput } from './prompt-quality.chain';
 export { runToolDescriptionChain, type ToolDescriptionInput } from './tool-description.chain';
 export { runCostEfficiencyChain, type CostEfficiencyInput } from './cost-efficiency.chain';
+export {
+  runAgentDimensionAnalysisChain,
+  type AgentDimensionAnalysisInput,
+} from './agent-dimension-analysis.chain';
+export {
+  runAgentSynthesisChain,
+  type AgentSynthesisInput,
+} from './agent-synthesis.chain';
+export {
+  runAgentSectionInsightsChain,
+  type AgentSectionInsightsInput,
+} from './agent-section-insights.chain';
+export {
+  runAgentOverviewAnalysisChain,
+  type AgentOverviewAnalysisInput,
+} from './agent-overview-analysis.chain';
+
+export {
+  runAgentTraceIntentRoutingChain,
+  type AgentTraceIntentRoutingInput,
+} from './agent-trace-intent-routing.chain';
