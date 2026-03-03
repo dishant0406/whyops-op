@@ -43,12 +43,21 @@ export class ProviderService {
    * List all providers for a user
    */
   static async listProviders(userId: string): Promise<Provider[]> {
-    const providers = await Provider.findAll({
-      where: { userId },
-      attributes: { exclude: ['apiKey'] },
-    });
+    try {
+      const providers = await Provider.findAll({
+        where: { userId },
+        attributes: { exclude: ['apiKey'] },
+      });
 
-    return providers;
+      return providers;
+    } catch (error: any) {
+      const code = error?.original?.code || error?.parent?.code;
+      if (code === '42P01') {
+        logger.warn({ userId }, 'providers table missing; returning empty provider list');
+        return [];
+      }
+      throw error;
+    }
   }
 
   /**
