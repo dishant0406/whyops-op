@@ -60,7 +60,7 @@ ENV NODE_ENV=production \
     JUDGE_LLM_MODEL=azure/gpt-4.1 \
     JUDGE_LLM_TEMPERATURE=0 \
     JUDGE_MAX_RETRIES=2 \
-    DB_SSL=true \
+    DB_SSL=false \
     DB_SSL_REJECT_UNAUTHORIZED=false
 
 COPY --from=builder /app/node_modules ./node_modules

@@ -29,6 +29,8 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     return (results as any[])[0]?.exists === true;
   };
 
+  const hasEntities = await tableExists('entities');
+
   if (!(await tableExists('agents'))) {
     await queryInterface.createTable('agents', {
       id: {
@@ -88,20 +90,22 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     });
   }
 
-  if (!(await columnExists('entities', 'agent_id'))) {
-    await queryInterface.addColumn('entities', 'agent_id', {
-      type: DataTypes.UUID,
-      allowNull: true,
-      references: {
-        model: 'agents',
-        key: 'id',
-      },
-      onDelete: 'CASCADE',
-    });
-  }
+  if (hasEntities) {
+    if (!(await columnExists('entities', 'agent_id'))) {
+      await queryInterface.addColumn('entities', 'agent_id', {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+          model: 'agents',
+          key: 'id',
+        },
+        onDelete: 'CASCADE',
+      });
+    }
 
-  if (!(await indexExistsOnColumn('entities', 'agent_id'))) {
-    await queryInterface.addIndex('entities', ['agent_id']);
+    if (!(await indexExistsOnColumn('entities', 'agent_id'))) {
+      await queryInterface.addIndex('entities', ['agent_id']);
+    }
   }
 }
 

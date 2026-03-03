@@ -33,6 +33,9 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     return (results as any[])[0]?.exists === true;
   };
 
+  const hasApiKeys = await tableExists('api_keys');
+  const hasEntities = await tableExists('entities');
+
   // Create projects table
   if (!(await tableExists('projects'))) {
     await queryInterface.createTable('projects', {
@@ -132,132 +135,136 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     });
   }
 
-  // Add columns to api_keys table
-  if (!(await columnExists('api_keys', 'project_id'))) {
-    await queryInterface.addColumn('api_keys', 'project_id', {
-      type: DataTypes.UUID,
-      allowNull: true,
-      references: {
-        model: 'projects',
-        key: 'id',
-      },
-      onDelete: 'CASCADE',
-    });
+  // Add/update api_keys only when the table exists in this environment.
+  if (hasApiKeys) {
+    if (!(await columnExists('api_keys', 'project_id'))) {
+      await queryInterface.addColumn('api_keys', 'project_id', {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+          model: 'projects',
+          key: 'id',
+        },
+        onDelete: 'CASCADE',
+      });
+    }
+
+    if (!(await columnExists('api_keys', 'environment_id'))) {
+      await queryInterface.addColumn('api_keys', 'environment_id', {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+          model: 'environments',
+          key: 'id',
+        },
+        onDelete: 'CASCADE',
+      });
+    }
+
+    if (hasEntities && !(await columnExists('api_keys', 'entity_id'))) {
+      await queryInterface.addColumn('api_keys', 'entity_id', {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+          model: 'entities',
+          key: 'id',
+        },
+        onDelete: 'CASCADE',
+      });
+    }
+
+    if (!(await columnExists('api_keys', 'is_master'))) {
+      await queryInterface.addColumn('api_keys', 'is_master', {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+      });
+    }
+
+    // Update provider_id to be nullable
+    try {
+      await queryInterface.changeColumn('api_keys', 'provider_id', {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+          model: 'providers',
+          key: 'id',
+        },
+        onDelete: 'CASCADE',
+      });
+    } catch (error) {
+      console.log('Could not change provider_id column, might already be updated');
+    }
+
+    // Update key_prefix to support longer prefixes
+    try {
+      await queryInterface.changeColumn('api_keys', 'key_prefix', {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+      });
+    } catch (error) {
+      console.log('Could not change key_prefix column, might already be updated');
+    }
+
+    // Add indexes for api_keys
+    if (!(await indexExistsOnColumn('api_keys', 'project_id'))) {
+      await queryInterface.addIndex('api_keys', ['project_id']);
+    }
+    if (!(await indexExistsOnColumn('api_keys', 'environment_id'))) {
+      await queryInterface.addIndex('api_keys', ['environment_id']);
+    }
+    if (!(await indexExistsOnColumn('api_keys', 'is_master'))) {
+      await queryInterface.addIndex('api_keys', ['is_master']);
+    }
   }
 
-  if (!(await columnExists('api_keys', 'environment_id'))) {
-    await queryInterface.addColumn('api_keys', 'environment_id', {
-      type: DataTypes.UUID,
-      allowNull: true,
-      references: {
-        model: 'environments',
-        key: 'id',
-      },
-      onDelete: 'CASCADE',
-    });
-  }
+  // Add columns/constraints to entities only when the table exists in this environment.
+  if (hasEntities) {
+    if (!(await columnExists('entities', 'project_id'))) {
+      await queryInterface.addColumn('entities', 'project_id', {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+          model: 'projects',
+          key: 'id',
+        },
+        onDelete: 'CASCADE',
+      });
+    }
 
-  if (!(await columnExists('api_keys', 'entity_id'))) {
-    await queryInterface.addColumn('api_keys', 'entity_id', {
-      type: DataTypes.UUID,
-      allowNull: true,
-      references: {
-        model: 'entities',
-        key: 'id',
-      },
-      onDelete: 'CASCADE',
-    });
-  }
+    if (!(await columnExists('entities', 'environment_id'))) {
+      await queryInterface.addColumn('entities', 'environment_id', {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+          model: 'environments',
+          key: 'id',
+        },
+        onDelete: 'CASCADE',
+      });
+    }
 
-  if (!(await columnExists('api_keys', 'is_master'))) {
-    await queryInterface.addColumn('api_keys', 'is_master', {
-      type: DataTypes.BOOLEAN,
-      defaultValue: false,
-    });
-  }
+    // Add indexes for entities
+    if (!(await indexExistsOnColumn('entities', 'project_id'))) {
+      await queryInterface.addIndex('entities', ['project_id']);
+    }
+    if (!(await indexExistsOnColumn('entities', 'environment_id'))) {
+      await queryInterface.addIndex('entities', ['environment_id']);
+    }
 
-  // Update provider_id to be nullable
-  try {
-    await queryInterface.changeColumn('api_keys', 'provider_id', {
-      type: DataTypes.UUID,
-      allowNull: true,
-      references: {
-        model: 'providers',
-        key: 'id',
-      },
-      onDelete: 'CASCADE',
-    });
-  } catch (error) {
-    console.log('Could not change provider_id column, might already be updated');
-  }
+    // Remove old unique constraint and add new one
+    try {
+      await queryInterface.removeConstraint('entities', 'entities_user_id_name_hash_key');
+    } catch (error) {
+      console.log('Could not remove old constraint, might not exist');
+    }
 
-  // Update key_prefix to support longer prefixes
-  try {
-    await queryInterface.changeColumn('api_keys', 'key_prefix', {
-      type: DataTypes.STRING(20),
-      allowNull: false,
-    });
-  } catch (error) {
-    console.log('Could not change key_prefix column, might already be updated');
-  }
-
-  // Add indexes for api_keys
-  if (!(await indexExistsOnColumn('api_keys', 'project_id'))) {
-    await queryInterface.addIndex('api_keys', ['project_id']);
-  }
-  if (!(await indexExistsOnColumn('api_keys', 'environment_id'))) {
-    await queryInterface.addIndex('api_keys', ['environment_id']);
-  }
-  if (!(await indexExistsOnColumn('api_keys', 'is_master'))) {
-    await queryInterface.addIndex('api_keys', ['is_master']);
-  }
-
-  // Add columns to entities table
-  if (!(await columnExists('entities', 'project_id'))) {
-    await queryInterface.addColumn('entities', 'project_id', {
-      type: DataTypes.UUID,
-      allowNull: true,
-      references: {
-        model: 'projects',
-        key: 'id',
-      },
-      onDelete: 'CASCADE',
-    });
-  }
-
-  if (!(await columnExists('entities', 'environment_id'))) {
-    await queryInterface.addColumn('entities', 'environment_id', {
-      type: DataTypes.UUID,
-      allowNull: true,
-      references: {
-        model: 'environments',
-        key: 'id',
-      },
-      onDelete: 'CASCADE',
-    });
-  }
-
-  // Add indexes for entities
-  if (!(await indexExistsOnColumn('entities', 'project_id'))) {
-    await queryInterface.addIndex('entities', ['project_id']);
-  }
-  if (!(await indexExistsOnColumn('entities', 'environment_id'))) {
-    await queryInterface.addIndex('entities', ['environment_id']);
-  }
-
-  // Remove old unique constraint and add new one
-  try {
-    await queryInterface.removeConstraint('entities', 'entities_user_id_name_hash_key');
-  } catch (error) {
-    console.log('Could not remove old constraint, might not exist');
-  }
-
-  if (!(await constraintExists('entities', 'unique_environment_entity'))) {
-    await queryInterface.addConstraint('entities', {
-      fields: ['environment_id', 'name', 'hash'],
-      type: 'unique',
-      name: 'unique_environment_entity',
-    });
+    if (!(await constraintExists('entities', 'unique_environment_entity'))) {
+      await queryInterface.addConstraint('entities', {
+        fields: ['environment_id', 'name', 'hash'],
+        type: 'unique',
+        name: 'unique_environment_entity',
+      });
+    }
   }
 }
 

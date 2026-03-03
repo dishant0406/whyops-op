@@ -22,7 +22,9 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     return (results as any[])[0]?.exists === true;
   };
 
-  if ((await tableExists('traces')) && !(await columnExists('traces', 'sampled_in'))) {
+  const hasTraces = await tableExists('traces');
+
+  if (hasTraces && !(await columnExists('traces', 'sampled_in'))) {
     await queryInterface.addColumn('traces', 'sampled_in', {
       type: DataTypes.BOOLEAN,
       allowNull: true,
@@ -30,13 +32,13 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     });
   }
 
-  if (!(await indexExists('traces', 'traces_sampled_in_idx'))) {
+  if (hasTraces && !(await indexExists('traces', 'traces_sampled_in_idx'))) {
     await queryInterface.addIndex('traces', ['sampled_in'], {
       name: 'traces_sampled_in_idx',
     });
   }
 
-  if (!(await tableExists('trace_analyses'))) {
+  if (hasTraces && !(await tableExists('trace_analyses'))) {
     await queryInterface.createTable('trace_analyses', {
       id: {
         type: DataTypes.UUID,
@@ -96,19 +98,21 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     });
   }
 
-  if (!(await indexExists('trace_analyses', 'trace_analyses_trace_id_idx'))) {
+  const hasTraceAnalyses = await tableExists('trace_analyses');
+
+  if (hasTraceAnalyses && !(await indexExists('trace_analyses', 'trace_analyses_trace_id_idx'))) {
     await queryInterface.addIndex('trace_analyses', ['trace_id'], {
       name: 'trace_analyses_trace_id_idx',
     });
   }
 
-  if (!(await indexExists('trace_analyses', 'trace_analyses_status_idx'))) {
+  if (hasTraceAnalyses && !(await indexExists('trace_analyses', 'trace_analyses_status_idx'))) {
     await queryInterface.addIndex('trace_analyses', ['status'], {
       name: 'trace_analyses_status_idx',
     });
   }
 
-  if (!(await tableExists('trace_analysis_findings'))) {
+  if (hasTraceAnalyses && !(await tableExists('trace_analysis_findings'))) {
     await queryInterface.createTable('trace_analysis_findings', {
       id: {
         type: DataTypes.UUID,
@@ -156,19 +160,27 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     });
   }
 
-  if (!(await indexExists('trace_analysis_findings', 'trace_analysis_findings_analysis_id_idx'))) {
+  const hasTraceAnalysisFindings = await tableExists('trace_analysis_findings');
+
+  if (
+    hasTraceAnalysisFindings &&
+    !(await indexExists('trace_analysis_findings', 'trace_analysis_findings_analysis_id_idx'))
+  ) {
     await queryInterface.addIndex('trace_analysis_findings', ['analysis_id'], {
       name: 'trace_analysis_findings_analysis_id_idx',
     });
   }
 
-  if (!(await indexExists('trace_analysis_findings', 'trace_analysis_findings_analysis_step_idx'))) {
+  if (
+    hasTraceAnalysisFindings &&
+    !(await indexExists('trace_analysis_findings', 'trace_analysis_findings_analysis_step_idx'))
+  ) {
     await queryInterface.addIndex('trace_analysis_findings', ['analysis_id', 'step_id'], {
       name: 'trace_analysis_findings_analysis_step_idx',
     });
   }
 
-  if (!(await tableExists('analysis_experiments'))) {
+  if (hasTraceAnalyses && !(await tableExists('analysis_experiments'))) {
     await queryInterface.createTable('analysis_experiments', {
       id: {
         type: DataTypes.UUID,
@@ -211,7 +223,10 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     });
   }
 
-  if (!(await indexExists('analysis_experiments', 'analysis_experiments_analysis_id_idx'))) {
+  if (
+    (await tableExists('analysis_experiments')) &&
+    !(await indexExists('analysis_experiments', 'analysis_experiments_analysis_id_idx'))
+  ) {
     await queryInterface.addIndex('analysis_experiments', ['analysis_id'], {
       name: 'analysis_experiments_analysis_id_idx',
     });
