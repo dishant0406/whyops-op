@@ -68,12 +68,20 @@ export function redactSensitive<T extends Record<string, any>>(
  */
 export function parseDatabaseUrl(url: string) {
   const parsed = new URL(url);
+  const decode = (value: string) => {
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  };
+
   return {
     host: parsed.hostname,
     port: parseInt(parsed.port) || 5432,
     database: parsed.pathname.slice(1),
-    username: parsed.username,
-    password: parsed.password,
+    username: decode(parsed.username),
+    password: decode(parsed.password),
   };
 }
 
