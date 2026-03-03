@@ -482,17 +482,44 @@ app.get('/', async (c) => {
     const include = parseInclude(c.req.query('include'));
     const includeMetadata = include.has('metadata');
 
-    const { rows: agents, count: total } = await Agent.findAndCountAll({
+    const attributes = ['id', 'userId', 'projectId', 'environmentId', 'name', 'createdAt', 'updatedAt'] as const;
+    let { rows: agents, count: total } = await Agent.findAndCountAll({
       where: {
         userId: auth.userId,
         projectId: auth.projectId,
         environmentId: auth.environmentId,
       },
-      attributes: ['id', 'userId', 'projectId', 'environmentId', 'name', 'createdAt', 'updatedAt'],
+      attributes: [...attributes],
       order: [['createdAt', 'DESC']],
       limit: count,
       offset,
     });
+
+    // Session scope can drift from where agents were originally ingested.
+    // If strict project/environment scope is empty, fall back to user scope.
+    if (total === 0) {
+      const fallback = await Agent.findAndCountAll({
+        where: { userId: auth.userId },
+        attributes: [...attributes],
+        order: [['createdAt', 'DESC']],
+        limit: count,
+        offset,
+      });
+
+      if (fallback.count > 0) {
+        logger.warn(
+          {
+            userId: auth.userId,
+            projectId: auth.projectId,
+            environmentId: auth.environmentId,
+            fallbackTotal: fallback.count,
+          },
+          'No agents found in scoped project/environment; falling back to user scope'
+        );
+        agents = fallback.rows;
+        total = fallback.count;
+      }
+    }
 
     const agentIds = agents.map((agent) => agent.id);
 
@@ -581,7 +608,7 @@ app.get('/:id', async (c) => {
         const includeMetadata = include.has('metadata');
 
         const id = c.req.param('id');
-        const agent = await Agent.findOne({
+        let agent = await Agent.findOne({
             where: {
                 id,
                 userId: auth.userId,
@@ -590,6 +617,31 @@ app.get('/:id', async (c) => {
             },
             attributes: ['id', 'userId', 'projectId', 'environmentId', 'name', 'createdAt', 'updatedAt'],
         });
+
+        if (!agent) {
+          const fallbackAgent = await Agent.findOne({
+            where: {
+              id,
+              userId: auth.userId,
+            },
+            attributes: ['id', 'userId', 'projectId', 'environmentId', 'name', 'createdAt', 'updatedAt'],
+          });
+
+          if (fallbackAgent) {
+            logger.warn(
+              {
+                userId: auth.userId,
+                projectId: auth.projectId,
+                environmentId: auth.environmentId,
+                agentId: id,
+                fallbackProjectId: fallbackAgent.projectId,
+                fallbackEnvironmentId: fallbackAgent.environmentId,
+              },
+              'Agent not found in scoped project/environment; falling back to user scope'
+            );
+            agent = fallbackAgent;
+          }
+        }
 
         if (!agent) return c.json({ success: false, error: 'Agent not found' }, 404);
 
