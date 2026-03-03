@@ -5,6 +5,7 @@ import sequelize from '../database';
 export interface TraceEvent {
   id: string;
   traceId: string; // was threadId
+  entityId?: string;
   spanId?: string;
   stepId: number;
   parentStepId?: number;
@@ -27,6 +28,7 @@ interface EventCreationAttributes extends Optional<TraceEvent, 'id' | 'createdAt
 export class LLMEvent extends Model<TraceEvent, EventCreationAttributes> implements TraceEvent {
   declare id: string;
   declare traceId: string;
+  declare entityId?: string;
   declare spanId?: string;
   declare stepId: number;
   declare parentStepId?: number;
@@ -50,6 +52,15 @@ LLMEvent.init(
       type: DataTypes.STRING,
       allowNull: false,
       field: 'trace_id',
+    },
+    entityId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: {
+        model: 'entities',
+        key: 'id',
+      },
+      field: 'entity_id',
     },
     spanId: {
       type: DataTypes.STRING,
@@ -116,6 +127,9 @@ LLMEvent.init(
     indexes: [
       {
         fields: ['trace_id'],
+      },
+      {
+        fields: ['entity_id'],
       },
       {
         fields: ['user_id'],
