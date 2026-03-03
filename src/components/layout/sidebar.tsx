@@ -1,6 +1,7 @@
 "use client";
 
 import { LogoMark } from "@/components/brand/logo-mark";
+import { WEB_VERSION } from "@/constants/web-version";
 import { goToDocumentation } from "@/lib/helper";
 import { cn } from "@/lib/utils";
 import {
@@ -155,7 +156,7 @@ export function Sidebar({ className, defaultCollapsed = false, ...props }: Sideb
         ) : (
           <div className="flex items-center justify-between rounded-sm border border-border/50 bg-surface-2/30 px-2.5 py-2 text-xs">
             <span className="font-medium text-foreground">System online</span>
-            <span className="text-muted-foreground">v2.4.0</span>
+            <span className="text-muted-foreground">v{WEB_VERSION}</span>
           </div>
         )}
       </div>

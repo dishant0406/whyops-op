@@ -9,7 +9,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "bump": "node scripts/bump-web-version.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
