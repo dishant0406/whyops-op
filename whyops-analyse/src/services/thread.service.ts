@@ -514,7 +514,15 @@ export class ThreadService {
         : undefined;
 
       const modelForCost = trace.model || (trace.metadata as any)?.model;
-      const cost = modelForCost ? await llmCostService.getCosts([modelForCost]) : [];
+      let cost: any[] = [];
+      if (modelForCost) {
+        try {
+          cost = (await llmCostService.getCosts([modelForCost])) || [];
+        } catch (costError) {
+          logger.warn({ costError, threadId, modelForCost }, 'Failed to resolve thread cost; returning thread without cost details');
+          cost = [];
+        }
+      }
 
       return {
         threadId: trace.id,

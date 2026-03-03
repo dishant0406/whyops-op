@@ -6,6 +6,10 @@ import { createServiceLogger } from '../utils/logger';
 const logger = createServiceLogger('shared:llm-cost-service');
 
 export class LlmCostService {
+  private isMissingRelationError(error: any): boolean {
+    return error?.name === 'SequelizeDatabaseError' && error?.original?.code === '42P01';
+  }
+
   /**
    * Get cost for a single model or multiple models.
    * If not found or expired (TTL 2 months), fetches from Linkup API.
@@ -39,40 +43,36 @@ export class LlmCostService {
     const twoMonthsAgo = new Date();
     twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
 
-    // 1. Search in DB with multiple strategies
-    // We try to find the best match using OR logic
-    
-    let cost = await LlmCost.findOne({
-      where: {
-        [Op.or]: [
-          // A. Exact normalized match
-          { model: normalizedName },
-          
-          // B. Fuzzy match using pg_trgm similarity with LOWER threshold
-          // 0.4 was too high for "qwen 3" vs "qwen3-max". Lowering to 0.1
-          sequelize.literal(`similarity(model, '${normalizedName}') > 0.1`),
-          
-          // C. Aggressive Alphanumeric Substring Match (The "Fingerprint" match)
-          // If the DB model (stripped of chars) contains the Query (stripped of chars)
-          // e.g. DB: "qwen3-max" -> "qwen3max". Query: "qwen 3" -> "qwen3". Match!
-          sequelize.where(
-            sequelize.fn('regexp_replace', sequelize.fn('lower', sequelize.col('model')), '[^a-z0-9]', '', 'g'),
-            { [Op.like]: `%${alphanumericQuery}%` }
-          ),
-          
-          // D. Reverse Aggressive Match (Query contains DB)
-          // e.g. Query: "openai/gpt-4" -> "openaigpt4". DB: "gpt-4" -> "gpt4". Match!
-          sequelize.literal(`'${alphanumericQuery}' LIKE '%' || regexp_replace(lower(model), '[^a-z0-9]', '', 'g') || '%'`)
-        ]
-      },
-      // Order by:
-      // 1. Similarity score (Trigrams are still best for true typos)
-      // 2. Length (Prefer longer matches for specificity if similarity is low)
-      order: [
-        [sequelize.literal(`similarity(model, '${normalizedName}')`), 'DESC'],
-        [sequelize.fn('LENGTH', sequelize.col('model')), 'DESC']
-      ]
-    });
+    // 1. Search in DB with extension-free matching strategies.
+    let cost: LlmCost | null = null;
+    try {
+      cost = await LlmCost.findOne({
+        where: {
+          [Op.or]: [
+            // A. Exact normalized match
+            { model: normalizedName },
+            // B. Case-insensitive contains
+            {
+              model: {
+                [Op.iLike]: `%${normalizedName}%`,
+              },
+            },
+            // C. Aggressive alphanumeric fingerprint match
+            sequelize.where(
+              sequelize.fn('regexp_replace', sequelize.fn('lower', sequelize.col('model')), '[^a-z0-9]', '', 'g'),
+              { [Op.like]: `%${alphanumericQuery}%` }
+            ),
+          ],
+        },
+        order: [[sequelize.fn('LENGTH', sequelize.col('model')), 'DESC']],
+      });
+    } catch (error: any) {
+      if (this.isMissingRelationError(error)) {
+        logger.warn({ modelName }, 'llm_costs table does not exist; skipping cost lookup');
+        return null;
+      }
+      throw error;
+    }
 
     // 2. Check if found and valid (TTL)
     if (cost && cost.updatedAt > twoMonthsAgo) {
@@ -118,12 +118,25 @@ export class LlmCostService {
           } else {
             // Create new record
             logger.info({ modelName, fetchedModelName }, 'Creating new LLM Cost record');
-            cost = await LlmCost.create({
-              model: fetchedModelName,
-              inputTokenPricePerMillionToken: fetchedData.inputTokenPricePerMillionToken,
-              outputTokenPricePerMillionToken: fetchedData.outputTokenPricePerMillionToken,
-              cachedTokenPricePerMillionToken: fetchedData.cachedTokenPricePerMillionToken || 0,
-            });
+            try {
+              cost = await LlmCost.create({
+                model: fetchedModelName,
+                inputTokenPricePerMillionToken: fetchedData.inputTokenPricePerMillionToken,
+                outputTokenPricePerMillionToken: fetchedData.outputTokenPricePerMillionToken,
+                cachedTokenPricePerMillionToken: fetchedData.cachedTokenPricePerMillionToken || 0,
+              });
+            } catch (createError: any) {
+              if (this.isMissingRelationError(createError)) {
+                logger.warn({ modelName }, 'llm_costs table does not exist; returning fetched cost without persistence');
+                return {
+                  model: fetchedModelName,
+                  inputTokenPricePerMillionToken: fetchedData.inputTokenPricePerMillionToken,
+                  outputTokenPricePerMillionToken: fetchedData.outputTokenPricePerMillionToken,
+                  cachedTokenPricePerMillionToken: fetchedData.cachedTokenPricePerMillionToken || 0,
+                };
+              }
+              throw createError;
+            }
           }
         }
       }
