@@ -1,0 +1,4 @@
+interface:
+  display_name: "WhyOps Mastra Integration"
+  short_description: "Integrate WhyOps into Mastra"
+  default_prompt: "Use $whyops-mastra-integration to add WhyOps proxy or manual events instrumentation to this Mastra app."
