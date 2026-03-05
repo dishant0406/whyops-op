@@ -1,6 +1,12 @@
 ---
 name: whyops-mastra-integration
-description: Integrate WhyOps with Mastra applications using two supported modes: WhyOps proxy mode and direct manual event ingestion mode. Use when tasks mention Mastra Agent.generate/Agent.stream, fullStream chunk handling, RequestContext, model router/provider config, WhyOps auth/proxy/analyse services, or when adding WhyOps API key auth, X-Agent-Name/X-Trace-ID headers, analyse ingest headers, and WhyOps event payload mapping.
+description: >-
+  Integrate WhyOps with Mastra applications using two supported modes: WhyOps
+  proxy mode and direct manual event ingestion mode. Use when tasks mention
+  Mastra Agent.generate/Agent.stream, fullStream chunk handling, RequestContext,
+  model router/provider config, WhyOps auth/proxy/analyse services, or when
+  adding WhyOps API key auth, X-Agent-Name/X-Trace-ID headers, analyse ingest
+  headers, and WhyOps event payload mapping.
 ---
 
 # WhyOps Mastra Integration

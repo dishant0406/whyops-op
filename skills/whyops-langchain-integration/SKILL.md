@@ -1,6 +1,12 @@
 ---
 name: whyops-langchain-integration
-description: Integrate WhyOps with LangChain applications using two supported modes: WhyOps proxy mode and direct manual event ingestion mode. Use when tasks mention LangChain, ChatOpenAI, LCEL, agent/tool traces, callbacks/stream events, WhyOps auth/proxy/analyse services, or when adding WhyOps API key auth, X-Agent-Name/X-Trace-ID headers, analyse ingest headers, and WhyOps event payload mapping.
+description: >-
+  Integrate WhyOps with LangChain applications using two supported modes:
+  WhyOps proxy mode and direct manual event ingestion mode. Use when tasks
+  mention LangChain, ChatOpenAI, LCEL, agent/tool traces, callbacks/stream
+  events, WhyOps auth/proxy/analyse services, or when adding WhyOps API key
+  auth, X-Agent-Name/X-Trace-ID headers, analyse ingest headers, and WhyOps
+  event payload mapping.
 ---
 
 # WhyOps LangChain Integration
