@@ -277,3 +277,32 @@ export type OpenAIResponsesStreamEvent =
   | { type: 'response.completed'; sequence_number: number; response: OpenAIResponsesResponse }
   | { type: 'response.failed'; sequence_number?: number; response: OpenAIResponsesResponse }
   | { type: 'response.incomplete'; sequence_number?: number; response: OpenAIResponsesResponse };
+
+// /embeddings types
+export type OpenAIEmbeddingsInput = string | Array<string> | Array<number> | Array<Array<number>>;
+
+export interface OpenAIEmbeddingsRequest {
+  model: string;
+  input: OpenAIEmbeddingsInput;
+  dimensions?: number;
+  encoding_format?: 'float' | 'base64';
+  user?: string;
+  [key: string]: any;
+}
+
+export interface OpenAIEmbedding {
+  object: 'embedding';
+  embedding: Array<number> | string;
+  index: number;
+}
+
+export interface OpenAIEmbeddingsResponse {
+  object: 'list';
+  data: OpenAIEmbedding[];
+  model: string;
+  usage: {
+    prompt_tokens: number;
+    total_tokens: number;
+  };
+  [key: string]: any;
+}

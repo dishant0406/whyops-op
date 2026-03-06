@@ -9,7 +9,17 @@ import { TraceService } from './trace.service';
 const logger = createServiceLogger('analyse:event-service');
 
 export interface EventData {
-  eventType: 'user_message' | 'llm_response' | 'llm_thinking' | 'tool_call' | 'tool_call_request' | 'tool_call_response' | 'tool_result' | 'error';
+  eventType:
+    | 'user_message'
+    | 'llm_response'
+    | 'embedding_request'
+    | 'embedding_response'
+    | 'llm_thinking'
+    | 'tool_call'
+    | 'tool_call_request'
+    | 'tool_call_response'
+    | 'tool_result'
+    | 'error';
   traceId: string;
   agentName: string;
   spanId?: string;
@@ -49,16 +59,16 @@ export class EventService {
    * Validate event data before processing
    */
   private static validateEventData(data: EventData): void {
-    // llm_response events MUST have model and provider in metadata
-    if (data.eventType === 'llm_response') {
+    // Response events MUST have model and provider in metadata
+    if (data.eventType === 'llm_response' || data.eventType === 'embedding_response') {
       const model = data.metadata?.model;
       const provider = data.metadata?.provider;
 
       if (!model) {
-        throw new Error('MISSING_MODEL: llm_response events require "model" in metadata');
+        throw new Error(`MISSING_MODEL: ${data.eventType} events require "model" in metadata`);
       }
       if (!provider) {
-        throw new Error('MISSING_PROVIDER: llm_response events require "provider" in metadata');
+        throw new Error(`MISSING_PROVIDER: ${data.eventType} events require "provider" in metadata`);
       }
     }
   }

@@ -4,7 +4,17 @@ import { enqueueRedisStreamEvent } from '@whyops/shared/services';
 
 const logger = createServiceLogger('proxy:analyse');
 
-type EventType = 'user_message' | 'llm_response' | 'llm_thinking' | 'tool_call' | 'tool_call_request' | 'tool_call_response' | 'tool_result' | 'error';
+type EventType =
+  | 'user_message'
+  | 'llm_response'
+  | 'embedding_request'
+  | 'embedding_response'
+  | 'llm_thinking'
+  | 'tool_call'
+  | 'tool_call_request'
+  | 'tool_call_response'
+  | 'tool_result'
+  | 'error';
 
 export interface TraceEventPayload {
   // Required fields

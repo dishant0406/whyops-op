@@ -9,7 +9,17 @@ export interface TraceEvent {
   spanId?: string;
   stepId: number;
   parentStepId?: number;
-  eventType: 'user_message' | 'llm_response' | 'llm_thinking' | 'tool_call' | 'tool_call_request' | 'tool_call_response' | 'tool_result' | 'error';
+  eventType:
+    | 'user_message'
+    | 'llm_response'
+    | 'embedding_request'
+    | 'embedding_response'
+    | 'llm_thinking'
+    | 'tool_call'
+    | 'tool_call_request'
+    | 'tool_call_response'
+    | 'tool_result'
+    | 'error';
   userId: string;
   providerId?: string;
   timestamp: Date;
@@ -32,7 +42,17 @@ export class LLMEvent extends Model<TraceEvent, EventCreationAttributes> impleme
   declare spanId?: string;
   declare stepId: number;
   declare parentStepId?: number;
-  declare eventType: 'user_message' | 'llm_response' | 'llm_thinking' | 'tool_call' | 'tool_call_request' | 'tool_call_response' | 'tool_result' | 'error';
+  declare eventType:
+    | 'user_message'
+    | 'llm_response'
+    | 'embedding_request'
+    | 'embedding_response'
+    | 'llm_thinking'
+    | 'tool_call'
+    | 'tool_call_request'
+    | 'tool_call_response'
+    | 'tool_result'
+    | 'error';
   declare userId: string;
   declare providerId?: string;
   declare timestamp: Date;

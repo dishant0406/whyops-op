@@ -5,6 +5,8 @@ export const eventsHelp = {
   supportedEventTypes: [
     'user_message',
     'llm_response',
+    'embedding_request',
+    'embedding_response',
     'llm_thinking',
     'tool_call',
     'tool_call_request',
@@ -74,6 +76,39 @@ export const eventsHelp = {
           content: 'string',
           toolCalls: 'array',
           finishReason: 'string',
+        },
+      },
+      metadata: {
+        required: ['model', 'provider'],
+        optional: ['usage', 'latencyMs', 'providerSlug'],
+      },
+    },
+    embedding_request: {
+      description: 'Embedding API input payload sent to provider.',
+      requiredFields: ['eventType', 'traceId', 'agentName'],
+      optionalFields: ['content', 'metadata', 'timestamp', 'stepId', 'parentStepId', 'spanId', 'idempotencyKey'],
+      content: {
+        expected: 'Object containing embeddings input.',
+        shape: {
+          input: 'string | string[] | number[] | number[][]',
+        },
+      },
+      metadata: {
+        optional: ['model', 'provider', 'providerSlug', 'params.dimensions', 'params.encodingFormat', 'params.user'],
+      },
+    },
+    embedding_response: {
+      description: 'Embedding API output summary and usage.',
+      requiredFields: ['eventType', 'traceId', 'agentName'],
+      requiredMetadata: ['model', 'provider'],
+      optionalFields: ['content', 'metadata', 'timestamp', 'stepId', 'parentStepId', 'spanId', 'idempotencyKey'],
+      content: {
+        expected: 'Object summarizing embedding response payload.',
+        shape: {
+          object: "'list'",
+          embeddingCount: 'number',
+          firstEmbeddingDimensions: 'number',
+          encodingFormat: "'float' | 'base64'",
         },
       },
       metadata: {

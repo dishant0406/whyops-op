@@ -11,6 +11,8 @@ import type {
   OpenAIResponsesRequest,
   OpenAIResponsesResponse,
   OpenAIResponsesStreamEvent,
+  OpenAIEmbeddingsRequest,
+  OpenAIEmbeddingsResponse,
 } from '../types/openai';
 import { dispatchAnalyseEvent } from '../services/async-events';
 import { copyProxyResponseHeaders, resolveProviderFromModel, validateResolvedProvider } from '../services/proxy-routing';
@@ -239,6 +241,62 @@ function summarizeResponsesInput(input: OpenAIResponsesRequest['input']) {
     length: input.length,
     items,
     truncated: input.length > 20,
+  };
+}
+
+function summarizeEmbeddingsInput(input: OpenAIEmbeddingsRequest['input']) {
+  if (typeof input === 'string') {
+    return {
+      kind: 'string',
+      length: input.length,
+    };
+  }
+
+  if (!Array.isArray(input)) {
+    return {
+      kind: 'unknown',
+      type: typeof input,
+    };
+  }
+
+  if (input.length === 0) {
+    return {
+      kind: 'array',
+      length: 0,
+      itemKind: 'empty',
+    };
+  }
+
+  const first = input[0] as any;
+
+  if (typeof first === 'string') {
+    return {
+      kind: 'array',
+      itemKind: 'string',
+      length: input.length,
+      firstLength: first.length,
+    };
+  }
+
+  if (typeof first === 'number') {
+    return {
+      kind: 'tokens',
+      tokenCount: input.length,
+    };
+  }
+
+  if (Array.isArray(first)) {
+    return {
+      kind: 'token_arrays',
+      length: input.length,
+      firstTokenCount: first.length,
+    };
+  }
+
+  return {
+    kind: 'array',
+    length: input.length,
+    itemKind: typeof first,
   };
 }
 
@@ -1104,6 +1162,161 @@ app.post('/responses', async (c) => {
       agentName,
       content: { message: error.message },
       metadata: { latencyMs }
+    });
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// OpenAI Embeddings endpoint
+app.post('/embeddings', async (c) => {
+  const auth = c.get('whyopsAuth') as ApiKeyAuthContext;
+  const requestBody = await c.req.json() as OpenAIEmbeddingsRequest;
+
+  const startTime = Date.now();
+  const agentName = c.req.header('X-Agent-Name');
+
+  if (!agentName) {
+    return c.json({ error: 'Missing required header: X-Agent-Name' }, 400);
+  }
+
+  const { provider, isCustom, providerSlug, actualModel } = await resolveProviderFromModel(
+    auth.userId,
+    requestBody.model,
+    auth.provider
+  );
+  const providerValidation = validateResolvedProvider(provider);
+  if (!providerValidation.valid) {
+    return c.json({ error: providerValidation.message }, 400);
+  }
+  requestBody.model = actualModel;
+
+  const traceId = c.req.header('X-Trace-ID') || c.req.header('X-Thread-ID') || generateThreadId();
+  const requestSpanId = generateSpanId();
+
+  c.header('X-Trace-ID', traceId);
+  c.header('X-Thread-ID', traceId);
+
+  logger.info(
+    {
+      model: requestBody.model,
+      traceId,
+      inputSummary: summarizeEmbeddingsInput(requestBody.input),
+    },
+    'OpenAI Embeddings API request received'
+  );
+
+  dispatchAnalyseEvent(auth.apiKey, {
+    traceId,
+    spanId: requestSpanId,
+    eventType: 'embedding_request',
+    providerId: provider.id,
+    agentName,
+    content: {
+      input: requestBody.input,
+    },
+    metadata: {
+      model: requestBody.model,
+      provider: isCustom ? 'custom' : 'openai',
+      providerSlug: providerSlug || undefined,
+      params: {
+        dimensions: requestBody.dimensions,
+        encodingFormat: requestBody.encoding_format,
+        user: requestBody.user,
+      },
+    },
+  });
+
+  try {
+    const openaiUrl = `${provider.baseUrl}/embeddings`;
+    const headers = {
+      Authorization: `Bearer ${provider.apiKey}`,
+      'Content-Type': 'application/json',
+      'User-Agent': 'WhyOps-Proxy/1.0',
+    };
+
+    const response = await fetch(openaiUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(requestBody),
+      signal: AbortSignal.timeout(env.PROXY_TIMEOUT_MS),
+    });
+
+    const latencyMs = Date.now() - startTime;
+    const rawBody = await response.text();
+    let responseData: OpenAIEmbeddingsResponse | Record<string, any> | string = rawBody;
+
+    try {
+      responseData = rawBody ? JSON.parse(rawBody) : {};
+    } catch {
+      // Keep rawBody as-is when upstream does not return JSON
+    }
+
+    if (!response.ok) {
+      logger.error(
+        {
+          status: response.status,
+          traceId,
+          responseData,
+          inputSummary: summarizeEmbeddingsInput(requestBody.input),
+        },
+        'OpenAI Embeddings API error'
+      );
+
+      dispatchAnalyseEvent(auth.apiKey, {
+        traceId,
+        spanId: generateSpanId(),
+        eventType: 'error',
+        providerId: provider.id,
+        agentName,
+        content: responseData,
+        metadata: { latencyMs },
+      });
+
+      return responseFromUpstreamError(response.status, response.headers.get('content-type'), rawBody);
+    }
+
+    const typedResponse = responseData as OpenAIEmbeddingsResponse;
+    const embeddingCount = Array.isArray(typedResponse.data) ? typedResponse.data.length : 0;
+    const firstEmbedding = embeddingCount > 0 ? typedResponse.data[0] : undefined;
+    const firstEmbeddingDimensions = Array.isArray(firstEmbedding?.embedding)
+      ? firstEmbedding.embedding.length
+      : undefined;
+    const encodingFormat = firstEmbedding
+      ? (typeof firstEmbedding.embedding === 'string' ? 'base64' : 'float')
+      : undefined;
+
+    dispatchAnalyseEvent(auth.apiKey, {
+      traceId,
+      spanId: generateSpanId(),
+      eventType: 'embedding_response',
+      providerId: provider.id,
+      agentName,
+      content: {
+        object: typedResponse.object,
+        embeddingCount,
+        firstEmbeddingDimensions,
+        encodingFormat,
+      },
+      metadata: {
+        model: typedResponse.model || requestBody.model,
+        provider: isCustom ? 'custom' : 'openai',
+        providerSlug: providerSlug || undefined,
+        usage: typedResponse.usage,
+        latencyMs,
+      },
+    });
+
+    return c.json(typedResponse);
+  } catch (error: any) {
+    const latencyMs = Date.now() - startTime;
+    dispatchAnalyseEvent(auth.apiKey, {
+      traceId,
+      spanId: generateSpanId(),
+      eventType: 'error',
+      providerId: provider.id,
+      agentName,
+      content: { message: error.message },
+      metadata: { latencyMs },
     });
     return c.json({ error: error.message }, 500);
   }
