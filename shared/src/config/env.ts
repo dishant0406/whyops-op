@@ -81,6 +81,12 @@ const envSchema = z.object({
   AUTH_APIKEY_CACHE_TTL_SEC: z.coerce.number().default(60),
   PROVIDER_CACHE_TTL_SEC: z.coerce.number().default(60),
   APIKEY_LAST_USED_WRITE_INTERVAL_SEC: z.coerce.number().default(300),
+
+  // V1 limits
+  MAX_AGENTS_PER_PROJECT: z.coerce.number().int().positive().default(2),
+  MAX_TRACES_PER_AGENT: z.coerce.number().int().positive().default(10000),
+  MAX_TRACES_PER_ENTITY: z.coerce.number().int().positive().default(1000),
+  DEFAULT_TRACE_SAMPLING_RATE: z.coerce.number().min(0).max(1).default(0.2),
   
   // Better Auth
   BETTER_AUTH_URL: z.string().url().default('http://localhost:8082'),

@@ -99,6 +99,7 @@ export class EventService {
 
         const samplingResult = await SamplingService.shouldSampleTrace(
           data.userId,
+          data.projectId,
           data.environmentId,
           data.agentName,
           traceHash

@@ -92,7 +92,7 @@ Entity.init(
     samplingRate: {
       type: DataTypes.DECIMAL(3, 2),
       allowNull: false,
-      defaultValue: 1.0,
+      defaultValue: 0.2,
       field: 'sampling_rate',
       validate: {
         min: 0,

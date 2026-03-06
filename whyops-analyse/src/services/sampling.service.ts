@@ -1,6 +1,8 @@
 import { createServiceLogger } from '@whyops/shared/logger';
-import { Entity } from '@whyops/shared/models';
+import env from '@whyops/shared/env';
+import { Entity, Trace } from '@whyops/shared/models';
 import CryptoJS from 'crypto-js';
+import { QueryTypes } from 'sequelize';
 
 const logger = createServiceLogger('analyse:sampling-service');
 
@@ -19,6 +21,7 @@ export class SamplingService {
    */
   static async shouldSampleTrace(
     userId: string,
+    projectId: string,
     environmentId: string,
     entityName: string | undefined,
     traceHash: string
@@ -31,13 +34,55 @@ export class SamplingService {
     try {
       // Fetch entity with sampling configuration
       const entity = await Entity.findOne({
-        where: { userId, environmentId, name: entityName },
+        where: { userId, projectId, environmentId, name: entityName },
         order: [['createdAt', 'DESC']],
       });
 
+      if (entity) {
+        const sampledTracesForEntity = await Trace.count({
+          where: {
+            entityId: entity.id,
+            sampledIn: true,
+          },
+        });
+
+        if (sampledTracesForEntity >= env.MAX_TRACES_PER_ENTITY) {
+          return {
+            shouldSample: false,
+            samplingRate: Number(entity.samplingRate),
+            reason: `Trace rejected by entity limit (${sampledTracesForEntity}/${env.MAX_TRACES_PER_ENTITY})`,
+          };
+        }
+
+        if (entity.agentId) {
+          const rows = await Entity.sequelize!.query<{ traceCount: string | number }>(
+            `
+              SELECT COUNT(*)::bigint AS "traceCount"
+              FROM traces t
+              JOIN entities e ON e.id = t.entity_id
+              WHERE e.agent_id = :agentId
+                AND t.sampled_in = true
+            `,
+            {
+              replacements: { agentId: entity.agentId },
+              type: QueryTypes.SELECT,
+            }
+          );
+          const sampledTracesForAgent = Number(rows[0]?.traceCount || 0);
+
+          if (sampledTracesForAgent >= env.MAX_TRACES_PER_AGENT) {
+            return {
+              shouldSample: false,
+              samplingRate: Number(entity.samplingRate),
+              reason: `Trace rejected by agent limit (${sampledTracesForAgent}/${env.MAX_TRACES_PER_AGENT})`,
+            };
+          }
+        }
+      }
+
       // If entity not found or sampling rate is 1.0, always sample
       if (!entity || entity.samplingRate >= 1.0) {
-        return { shouldSample: true, samplingRate: entity?.samplingRate };
+        return { shouldSample: true, samplingRate: Number(entity?.samplingRate) };
       }
 
       // Generate deterministic value from hash (0-1 range)
@@ -55,14 +100,14 @@ export class SamplingService {
 
       return {
         shouldSample,
-        samplingRate: entity.samplingRate,
+        samplingRate: Number(entity.samplingRate),
         hashValue,
         reason: shouldSample 
           ? undefined 
           : `Trace rejected by sampling (rate: ${entity.samplingRate}, hash: ${hashValue.toFixed(4)})`,
       };
     } catch (error) {
-      logger.error({ error, userId, environmentId, entityName }, 'Error in sampling decision, defaulting to sample');
+      logger.error({ error, userId, projectId, environmentId, entityName }, 'Error in sampling decision, defaulting to sample');
       return { shouldSample: true, reason: 'Error in sampling, defaulting to accept' };
     }
   }
@@ -73,11 +118,12 @@ export class SamplingService {
    */
   static async shouldSampleEvent(
     userId: string,
+    projectId: string,
     environmentId: string,
     entityName: string | undefined,
     eventHash: string
   ): Promise<SamplingResult> {
-    return this.shouldSampleTrace(userId, environmentId, entityName, eventHash);
+    return this.shouldSampleTrace(userId, projectId, environmentId, entityName, eventHash);
   }
 
   /**

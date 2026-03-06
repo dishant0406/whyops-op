@@ -1,6 +1,7 @@
 import { zValidator } from '@hono/zod-validator';
 import { createServiceLogger } from '@whyops/shared/logger';
 import { Agent, Entity } from '@whyops/shared/models';
+import { invalidateApiKeyAuthCacheById } from '@whyops/shared/services';
 import { Hono } from 'hono';
 import { QueryTypes } from 'sequelize';
 import { z } from 'zod';
@@ -370,6 +371,19 @@ app.post('/init', zValidator('json', entityInitSchema), async (c) => {
     );
 
   } catch (error: any) {
+    if (
+      error?.code === EntityService.PROJECT_AGENT_LIMIT_REACHED ||
+      error?.message?.includes('Agent limit reached for project')
+    ) {
+      return c.json(
+        {
+          success: false,
+          error: `Project agent limit reached (${error?.message || 'too many agents'})`,
+        },
+        409
+      );
+    }
+
     logger.error({ error, data }, 'Failed to init entity');
     return c.json({ success: false, error: 'Failed to initialize agent' }, 500);
   }
@@ -410,6 +424,47 @@ app.patch('/:id/sampling-rate', zValidator('json', updateSamplingRateSchema), as
   } catch (error: any) {
     logger.error({ error }, 'Failed to update agent sampling rate');
     return c.json({ success: false, error: 'Failed to update sampling rate' }, 500);
+  }
+});
+
+// DELETE /api/entities/:id - hard delete an agent and all linked runtime data
+app.delete('/:id', zValidator('param', agentIdParamsSchema), async (c) => {
+  const auth = c.get('whyopsAuth');
+
+  if (!auth) {
+    return c.json({ success: false, error: 'Unauthorized: authentication required' }, 401);
+  }
+
+  try {
+    const { id } = c.req.valid('param');
+
+    const result = await EntityService.deleteAgentAndLinkedData({
+      userId: auth.userId,
+      projectId: auth.projectId,
+      environmentId: auth.environmentId,
+      agentId: id,
+    });
+
+    if (!result) {
+      return c.json({ success: false, error: 'Agent not found' }, 404);
+    }
+
+    entitiesListCache.clear();
+    await Promise.all(
+      result.invalidatedApiKeyIds.map((apiKeyId) => invalidateApiKeyAuthCacheById(apiKeyId))
+    );
+
+    return c.json({
+      success: true,
+      agentId: result.agentId,
+      deletedTraceEvents: result.deletedTraceEvents,
+      deletedTraces: result.deletedTraces,
+      deletedEntities: result.deletedEntities,
+      deletedApiKeys: result.deletedApiKeys,
+    });
+  } catch (error: any) {
+    logger.error({ error }, 'Failed to delete agent');
+    return c.json({ success: false, error: 'Failed to delete agent' }, 500);
   }
 });
 
