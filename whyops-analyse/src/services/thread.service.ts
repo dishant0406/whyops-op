@@ -95,6 +95,7 @@ export interface ThreadDetail {
   threadId: string;
   userId: string;
   providerId?: string;
+  sampledIn?: boolean;
   agentId?: string;
   entityId?: string;
   entityName?: string;
@@ -369,6 +370,25 @@ export class ThreadService {
         return null;
       }
 
+      const entityMetadata = (trace as any).entity?.metadata as Record<string, any> | undefined;
+      const resolvedSystemPrompt = includeSystemPrompt
+        ? (trace.systemMessage || entityMetadata?.systemPrompt || undefined)
+        : undefined;
+      const resolvedTools = includeTools
+        ? (trace.tools || entityMetadata?.tools || undefined)
+        : undefined;
+
+      const modelForCost = trace.model || (trace.metadata as any)?.model;
+      let cost: any[] = [];
+      if (modelForCost) {
+        try {
+          cost = (await llmCostService.getCosts([modelForCost])) || [];
+        } catch (costError) {
+          logger.warn({ costError, threadId, modelForCost }, 'Failed to resolve thread cost; returning thread without cost details');
+          cost = [];
+        }
+      }
+
       interface ThreadSummaryRow {
         eventCount: string | number;
         firstEventTimestamp: string | Date | null;
@@ -400,7 +420,38 @@ export class ThreadService {
       const eventCount = Number(summary?.eventCount || 0);
 
       if (eventCount === 0 || !summary?.firstEventTimestamp || !summary?.lastEventTimestamp) {
-        return null;
+        const createdAt = trace.createdAt;
+        return {
+          threadId: trace.id,
+          userId: trace.userId,
+          providerId: trace.providerId,
+          sampledIn: trace.sampledIn,
+          agentId: (trace as any).entity?.agentId,
+          entityId: trace.entityId,
+          entityName: (trace as any).entity?.name,
+          lastActivity: createdAt,
+          model: trace.model || (trace.metadata as any)?.model,
+          systemPrompt: resolvedSystemPrompt,
+          tools: resolvedTools,
+          metadata: includeMetadata ? trace.metadata : undefined,
+          firstEventTimestamp: createdAt,
+          lastEventTimestamp: createdAt,
+          duration: 0,
+          eventCount: 0,
+          totalTokens: 0,
+          totalLatency: 0,
+          avgLatency: 0,
+          errorCount: 0,
+          events: [],
+          hasLateEvents: false,
+          eventsPagination: {
+            total: 0,
+            limit: eventLimit,
+            offset: eventOffset,
+            hasMore: false,
+          },
+          cost,
+        };
       }
 
       const firstEventTimestamp = new Date(summary.firstEventTimestamp);
@@ -505,29 +556,11 @@ export class ThreadService {
         };
       });
 
-      const entityMetadata = (trace as any).entity?.metadata as Record<string, any> | undefined;
-      const resolvedSystemPrompt = includeSystemPrompt
-        ? (trace.systemMessage || entityMetadata?.systemPrompt || undefined)
-        : undefined;
-      const resolvedTools = includeTools
-        ? (trace.tools || entityMetadata?.tools || undefined)
-        : undefined;
-
-      const modelForCost = trace.model || (trace.metadata as any)?.model;
-      let cost: any[] = [];
-      if (modelForCost) {
-        try {
-          cost = (await llmCostService.getCosts([modelForCost])) || [];
-        } catch (costError) {
-          logger.warn({ costError, threadId, modelForCost }, 'Failed to resolve thread cost; returning thread without cost details');
-          cost = [];
-        }
-      }
-
       return {
         threadId: trace.id,
         userId: trace.userId,
         providerId: trace.providerId,
+        sampledIn: trace.sampledIn,
         agentId: (trace as any).entity?.agentId,
         entityId: trace.entityId,
         entityName: (trace as any).entity?.name,

@@ -84,8 +84,19 @@ export class ThreadController {
         return c.json({ success: false, error: 'Thread not found' }, 404);
       }
 
+      if (thread.sampledIn === false) {
+        return c.json({
+          success: true,
+          sampledOut: true,
+          sampledIn: false,
+          ...thread,
+        });
+      }
+
       return c.json({
         success: true,
+        sampledOut: false,
+        sampledIn: thread.sampledIn,
         ...thread,
       });
     } catch (error: any) {
