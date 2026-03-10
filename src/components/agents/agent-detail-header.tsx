@@ -52,6 +52,7 @@ export function AgentDetailHeader({ agent }: AgentDetailHeaderProps) {
   const {
     settingsByAgentId,
     globalLimits,
+    permissions,
     fetchAgentSettings,
     fetchGlobalLimits,
     updateAgentSettings,
@@ -60,6 +61,7 @@ export function AgentDetailHeader({ agent }: AgentDetailHeaderProps) {
   } = useAgentSettingsStore((state) => ({
     settingsByAgentId: state.settingsByAgentId,
     globalLimits: state.globalLimits,
+    permissions: state.permissions,
     fetchAgentSettings: state.fetchAgentSettings,
     fetchGlobalLimits: state.fetchGlobalLimits,
     updateAgentSettings: state.updateAgentSettings,
@@ -96,17 +98,30 @@ export function AgentDetailHeader({ agent }: AgentDetailHeaderProps) {
   }, [agent.id, fetchAgentSettings, fetchGlobalLimits, globalLimits]);
 
   const hasSamplingChanges = useMemo(() => {
+    const canChangeTraces = permissions.canChangeAgentMaxTraces;
+    const canChangeSpans = permissions.canChangeAgentMaxSpans;
+
     if (!agentSettings) {
       return Math.abs(samplingPercent / 100 - currentSamplingRate) >= 0.001;
     }
 
     const nextTraces = Number(maxTracesInput);
     const nextSpans = Number(maxSpansInput);
-    const tracesChanged = Number.isFinite(nextTraces) && Math.floor(nextTraces) !== agentSettings.maxTraces;
-    const spansChanged = Number.isFinite(nextSpans) && Math.floor(nextSpans) !== agentSettings.maxSpans;
+    const tracesChanged =
+      canChangeTraces && Number.isFinite(nextTraces) && Math.floor(nextTraces) !== agentSettings.maxTraces;
+    const spansChanged =
+      canChangeSpans && Number.isFinite(nextSpans) && Math.floor(nextSpans) !== agentSettings.maxSpans;
     const samplingChanged = Math.abs(samplingPercent / 100 - agentSettings.samplingRate) >= 0.001;
     return tracesChanged || spansChanged || samplingChanged;
-  }, [agentSettings, currentSamplingRate, maxSpansInput, maxTracesInput, samplingPercent]);
+  }, [
+    agentSettings,
+    currentSamplingRate,
+    maxSpansInput,
+    maxTracesInput,
+    permissions.canChangeAgentMaxSpans,
+    permissions.canChangeAgentMaxTraces,
+    samplingPercent,
+  ]);
 
   const getSamplingModeLabel = (value: number) => {
     if (value === 100) return "Full Capture";
@@ -138,11 +153,11 @@ export function AgentDetailHeader({ agent }: AgentDetailHeaderProps) {
       samplingRate: nextRate,
     };
 
-    if (Number.isFinite(nextMaxTraces)) {
+    if (permissions.canChangeAgentMaxTraces && Number.isFinite(nextMaxTraces)) {
       payload.maxTraces = Math.max(1, Math.floor(nextMaxTraces));
     }
 
-    if (Number.isFinite(nextMaxSpans)) {
+    if (permissions.canChangeAgentMaxSpans && Number.isFinite(nextMaxSpans)) {
       payload.maxSpans = Math.max(1, Math.floor(nextMaxSpans));
     }
 
@@ -245,6 +260,7 @@ export function AgentDetailHeader({ agent }: AgentDetailHeaderProps) {
                     min={1}
                     value={maxTracesInput}
                     onChange={(event) => setMaxTracesInput(event.target.value)}
+                    disabled={!permissions.canChangeAgentMaxTraces}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -254,9 +270,15 @@ export function AgentDetailHeader({ agent }: AgentDetailHeaderProps) {
                     min={1}
                     value={maxSpansInput}
                     onChange={(event) => setMaxSpansInput(event.target.value)}
+                    disabled={!permissions.canChangeAgentMaxSpans}
                   />
                 </div>
               </div>
+              {(!permissions.canChangeAgentMaxTraces || !permissions.canChangeAgentMaxSpans) && (
+                <p className="text-[11px] text-muted-foreground">
+                  Max traces/spans are locked on your current plan.
+                </p>
+              )}
 
               <div className="flex items-center justify-between gap-2">
                 <Button
@@ -264,7 +286,7 @@ export function AgentDetailHeader({ agent }: AgentDetailHeaderProps) {
                   variant="ghost"
                   size="sm"
                   onClick={handleResetToDefaults}
-                  disabled={isSavingSampling || isSaving}
+                  disabled={isSavingSampling || isSaving || !permissions.canChangeAgentMaxTraces || !permissions.canChangeAgentMaxSpans}
                 >
                   Reset to Defaults
                 </Button>

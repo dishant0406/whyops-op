@@ -8,6 +8,11 @@ import type { AgentGlobalLimits, AgentSettings } from "@/types/global";
 interface AgentSettingsState {
   settingsByAgentId: Record<string, AgentSettings>;
   globalLimits: AgentGlobalLimits | null;
+  permissions: {
+    canChangeAgentMaxTraces: boolean;
+    canChangeAgentMaxSpans: boolean;
+    canChangeMaxAgents: boolean;
+  };
   isLoading: boolean;
   isSaving: boolean;
   error: string | null;
@@ -21,9 +26,14 @@ interface AgentSettingsState {
   resetAgentSettings: (agentId: string) => Promise<AgentSettings | null>;
 }
 
-export const useAgentSettingsStore = create<AgentSettingsState>((set) => ({
+export const useAgentSettingsStore = create<AgentSettingsState>((set, get) => ({
   settingsByAgentId: {},
   globalLimits: null,
+  permissions: {
+    canChangeAgentMaxTraces: false,
+    canChangeAgentMaxSpans: false,
+    canChangeMaxAgents: false,
+  },
   isLoading: false,
   isSaving: false,
   error: null,
@@ -39,14 +49,31 @@ export const useAgentSettingsStore = create<AgentSettingsState>((set) => ({
 
     set({ isLoading: true, error: null });
     try {
-      const response = await apiClient.get<{ success: boolean; limits: AgentGlobalLimits }>(
+      const response = await apiClient.get<{
+        success: boolean;
+        limits: AgentGlobalLimits;
+        permissions?: {
+          canChangeAgentMaxTraces?: boolean;
+          canChangeAgentMaxSpans?: boolean;
+          canChangeMaxAgents?: boolean;
+        };
+      }>(
         `${config.analyseBaseUrl}/agent-settings/limits`,
         {
           headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
         }
       );
 
-      set({ globalLimits: response.data.limits, isLoading: false });
+      const permissions = response.data.permissions || {};
+      set({
+        globalLimits: response.data.limits,
+        permissions: {
+          canChangeAgentMaxTraces: Boolean(permissions.canChangeAgentMaxTraces),
+          canChangeAgentMaxSpans: Boolean(permissions.canChangeAgentMaxSpans),
+          canChangeMaxAgents: Boolean(permissions.canChangeMaxAgents),
+        },
+        isLoading: false,
+      });
       return response.data.limits;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to fetch global limits";
@@ -100,9 +127,22 @@ export const useAgentSettingsStore = create<AgentSettingsState>((set) => ({
 
     set({ isSaving: true, error: null });
     try {
+      const { permissions } = get();
+      const sanitizedPayload: Partial<Pick<AgentSettings, "samplingRate" | "maxTraces" | "maxSpans">> = {
+        samplingRate: payload.samplingRate,
+      };
+
+      if (permissions.canChangeAgentMaxTraces && typeof payload.maxTraces === "number") {
+        sanitizedPayload.maxTraces = payload.maxTraces;
+      }
+
+      if (permissions.canChangeAgentMaxSpans && typeof payload.maxSpans === "number") {
+        sanitizedPayload.maxSpans = payload.maxSpans;
+      }
+
       const response = await apiClient.patch<{ success: boolean; settings: AgentSettings }>(
         `${config.analyseBaseUrl}/agent-settings/${agentId}`,
-        payload,
+        sanitizedPayload,
         {
           headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
         }

@@ -88,6 +88,11 @@ export interface AgentSettings {
 
 export interface AgentGlobalLimits {
   maxAgents: number;
+  permissions?: {
+    canChangeAgentMaxTraces: boolean;
+    canChangeAgentMaxSpans: boolean;
+    canChangeMaxAgents: boolean;
+  };
 }
 
 // ============ Dashboard Types ============
