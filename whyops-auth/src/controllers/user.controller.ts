@@ -17,6 +17,11 @@ export interface OnboardingProgress {
 }
 
 export class UserController {
+  private static async getUserOnboardingState(userId: string): Promise<boolean> {
+    const appUser = await UserService.getUserById(userId);
+    return Boolean(appUser?.metadata?.onboardingComplete);
+  }
+
   /**
    * Get onboarding progress for the current user
    */
@@ -28,7 +33,7 @@ export class UserController {
         return ResponseUtil.unauthorized(c, 'Not authenticated');
       }
 
-      const onboardingComplete = Boolean(user.metadata?.onboardingComplete);
+      const onboardingComplete = await this.getUserOnboardingState(user.id);
       const cacheKey = `${user.id}:${onboardingComplete ? '1' : '0'}`;
       const cached = onboardingProgressCache.get(cacheKey);
       if (cached && Date.now() <= cached.expiresAtMs) {
@@ -81,17 +86,21 @@ export class UserController {
         return ResponseUtil.unauthorized(c, 'Not authenticated');
       }
 
+      const appUser = await UserService.getUserById(user.id);
+      const metadata = (appUser?.metadata || user.metadata || {}) as Record<string, any>;
+      const onboardingComplete = Boolean(metadata?.onboardingComplete);
+
       return ResponseUtil.success(c, {
         id: user.id,
         email: user.email,
-        name: user.name,
-        metadata: user.metadata,
-        onboardingComplete: Boolean(user.metadata?.onboardingComplete),
-        isActive: user.isActive,
+        name: appUser?.name ?? user.name,
+        metadata,
+        onboardingComplete,
+        isActive: appUser?.isActive ?? user.isActive,
         permissions: {
-          canChangeAgentMaxTraces: Boolean(user.metadata?.canChangeAgentMaxTraces),
-          canChangeAgentMaxSpans: Boolean(user.metadata?.canChangeAgentMaxSpans),
-          canChangeMaxAgents: Boolean(user.metadata?.canChangeMaxAgents),
+          canChangeAgentMaxTraces: Boolean(metadata?.canChangeAgentMaxTraces),
+          canChangeAgentMaxSpans: Boolean(metadata?.canChangeAgentMaxSpans),
+          canChangeMaxAgents: Boolean(metadata?.canChangeMaxAgents),
         },
       });
     } catch (error: any) {
@@ -127,9 +136,7 @@ export class UserController {
       // Update onboarding complete in our database
       if (typeof data.onboardingComplete === 'boolean') {
         await UserService.updateUser(user.id, {
-          metadata: {
-            onboardingComplete: data.onboardingComplete,
-          },
+          onboardingComplete: data.onboardingComplete,
         });
         onboardingProgressCache.delete(`${user.id}:0`);
         onboardingProgressCache.delete(`${user.id}:1`);
