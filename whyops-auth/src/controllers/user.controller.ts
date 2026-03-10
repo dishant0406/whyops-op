@@ -33,7 +33,7 @@ export class UserController {
         return ResponseUtil.unauthorized(c, 'Not authenticated');
       }
 
-      const onboardingComplete = await this.getUserOnboardingState(user.id);
+      const onboardingComplete = await UserController.getUserOnboardingState(user.id);
       const cacheKey = `${user.id}:${onboardingComplete ? '1' : '0'}`;
       const cached = onboardingProgressCache.get(cacheKey);
       if (cached && Date.now() <= cached.expiresAtMs) {
@@ -70,7 +70,13 @@ export class UserController {
 
       return ResponseUtil.success(c, payload);
     } catch (error: any) {
-      logger.error({ error }, 'Failed to fetch onboarding progress');
+      logger.error(
+        {
+          error: error?.message || error,
+          stack: error?.stack,
+        },
+        'Failed to fetch onboarding progress'
+      );
       return ResponseUtil.internalError(c, 'Failed to fetch onboarding progress');
     }
   }
