@@ -76,6 +76,7 @@ export function AgentDetailHeader({ agent }: AgentDetailHeaderProps) {
   const [maxSpansInput, setMaxSpansInput] = useState<string>(String(agent.maxSpans ?? ""));
   const [isSavingSampling, setIsSavingSampling] = useState(false);
   const [isSamplingPopoverOpen, setIsSamplingPopoverOpen] = useState(false);
+  const [isTestAgentHintOpen, setIsTestAgentHintOpen] = useState(false);
 
   useEffect(() => {
     setSamplingPercent(Math.round(currentSamplingRate * 100));
@@ -315,10 +316,28 @@ export function AgentDetailHeader({ agent }: AgentDetailHeaderProps) {
               </div>
             </PopoverContent>
           </Popover>
-          <Button className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
-            <Play className="h-4 w-4 fill-current" />
-            Test Agent
-          </Button>
+          <Popover open={isTestAgentHintOpen} onOpenChange={setIsTestAgentHintOpen}>
+            <PopoverTrigger asChild>
+              <span
+                onMouseEnter={() => setIsTestAgentHintOpen(true)}
+                onMouseLeave={() => setIsTestAgentHintOpen(false)}
+                onFocus={() => setIsTestAgentHintOpen(true)}
+                onBlur={() => setIsTestAgentHintOpen(false)}
+              >
+                <Button
+                  className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+                  disabled
+                  aria-disabled="true"
+                >
+                  <Play className="h-4 w-4 fill-current" />
+                  Test Agent
+                </Button>
+              </span>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-auto px-3 py-2 text-xs text-muted-foreground">
+              Auto evals coming soon
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
     </div>
