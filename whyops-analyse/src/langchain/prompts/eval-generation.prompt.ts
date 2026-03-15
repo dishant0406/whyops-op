@@ -33,8 +33,8 @@ CATEGORY-SPECIFIC GUIDELINES:
 **feature_specific**: Test cases derived from a specific feature requirement or PRD. These should verify the exact behaviors described in the requirement.
 
 CONVERSATION FORMAT:
-- User turns: {"role": "user", "content": "..."}
-- Assistant turns with expected tool calls: {"role": "assistant", "expected_tool_calls": [...], "expected_behavior": "..."}
+- User turns: {{"role": "user", "content": "..."}}
+- Assistant turns with expected tool calls: {{"role": "assistant", "expected_tool_calls": [...], "expected_behavior": "..."}}
 - For multi-turn: alternate user/assistant turns naturally
 
 SCORING RUBRIC GUIDELINES:

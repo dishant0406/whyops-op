@@ -134,6 +134,7 @@ export async function extractAgentProfile(input: ExtractProfileInput): Promise<A
 
   const agent = await Agent.findOne({
     where: { id: agentId, userId, projectId, environmentId },
+    attributes: ['id', 'name'],
   });
 
   if (!agent) {

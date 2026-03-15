@@ -137,7 +137,7 @@ app.post(
                 } else if (error?.message?.startsWith('JUDGE_NOT_CONFIGURED')) {
                   writeChunk({ success: false, error: 'LLM Judge not configured.' });
                 } else {
-                  logger.error({ error }, 'Eval generation stream failed');
+                  logger.error({ err: error }, 'Eval generation stream failed');
                   writeChunk({ success: false, error: 'Failed to generate evals' });
                 }
               } finally {
@@ -190,7 +190,7 @@ app.post(
           error: 'LLM Judge not configured. Set JUDGE_LLM_API_KEY environment variable.',
         }, 500);
       }
-      logger.error({ error }, 'Failed to run eval generation');
+      logger.error({ err: error }, 'Failed to run eval generation');
       return c.json({ success: false, error: 'Failed to generate evals' }, 500);
     }
   }
@@ -214,7 +214,7 @@ app.get('/:agentId/latest', zValidator('param', agentIdParamsSchema), async (c) 
     if (!run) return c.json({ success: false, error: 'No eval run found' }, 404);
     return c.json({ success: true, run });
   } catch (error: any) {
-    logger.error({ error }, 'Failed to fetch latest eval run');
+    logger.error({ err: error }, 'Failed to fetch latest eval run');
     return c.json({ success: false, error: 'Failed to fetch latest run' }, 500);
   }
 });
@@ -241,7 +241,7 @@ app.get('/:agentId/runs', zValidator('param', agentIdParamsSchema), async (c) =>
 
     return c.json({ success: true, ...result });
   } catch (error: any) {
-    logger.error({ error }, 'Failed to list eval runs');
+    logger.error({ err: error }, 'Failed to list eval runs');
     return c.json({ success: false, error: 'Failed to list runs' }, 500);
   }
 });
@@ -267,7 +267,7 @@ app.get(
       if (!run) return c.json({ success: false, error: 'Run not found' }, 404);
       return c.json({ success: true, run });
     } catch (error: any) {
-      logger.error({ error }, 'Failed to fetch eval run');
+      logger.error({ err: error }, 'Failed to fetch eval run');
       return c.json({ success: false, error: 'Failed to fetch run' }, 500);
     }
   }
@@ -297,7 +297,7 @@ app.get('/:agentId/cases', zValidator('param', agentIdParamsSchema), async (c) =
 
     return c.json({ success: true, ...result });
   } catch (error: any) {
-    logger.error({ error }, 'Failed to list eval cases');
+    logger.error({ err: error }, 'Failed to list eval cases');
     return c.json({ success: false, error: 'Failed to list cases' }, 500);
   }
 });
@@ -319,7 +319,7 @@ app.get('/:agentId/config', zValidator('param', agentIdParamsSchema), async (c) 
 
     return c.json({ success: true, config: config || null });
   } catch (error: any) {
-    logger.error({ error }, 'Failed to fetch eval config');
+    logger.error({ err: error }, 'Failed to fetch eval config');
     return c.json({ success: false, error: 'Failed to fetch config' }, 500);
   }
 });
@@ -357,7 +357,7 @@ app.put(
       if (error?.message === 'AGENT_NOT_FOUND') {
         return c.json({ success: false, error: 'Agent not found' }, 404);
       }
-      logger.error({ error }, 'Failed to upsert eval config');
+      logger.error({ err: error }, 'Failed to upsert eval config');
       return c.json({ success: false, error: 'Failed to save config' }, 500);
     }
   }
@@ -377,7 +377,7 @@ app.get('/:agentId/export/json', zValidator('param', agentIdParamsSchema), async
     const cases = await EvalGenerationService.exportAsJson(agentId, runId);
     return c.json({ success: true, evals: cases, count: cases.length });
   } catch (error: any) {
-    logger.error({ error }, 'Failed to export evals as JSON');
+    logger.error({ err: error }, 'Failed to export evals as JSON');
     return c.json({ success: false, error: 'Failed to export' }, 500);
   }
 });
@@ -395,7 +395,9 @@ app.get('/:agentId/export/promptfoo', zValidator('param', agentIdParamsSchema), 
 
     // Get agent name and system prompt for the Promptfoo config
     const { Agent, Entity } = await import('@whyops/shared/models');
-    const agent = await Agent.findByPk(agentId);
+    const agent = await Agent.findByPk(agentId, {
+      attributes: ['id', 'name'],
+    });
     if (!agent) return c.json({ success: false, error: 'Agent not found' }, 404);
 
     const entity = await Entity.findOne({
@@ -423,7 +425,7 @@ app.get('/:agentId/export/promptfoo', zValidator('param', agentIdParamsSchema), 
       },
     });
   } catch (error: any) {
-    logger.error({ error }, 'Failed to export evals as Promptfoo YAML');
+    logger.error({ err: error }, 'Failed to export evals as Promptfoo YAML');
     return c.json({ success: false, error: 'Failed to export' }, 500);
   }
 });
@@ -442,7 +444,7 @@ app.get('/:agentId/knowledge-profile', zValidator('param', agentIdParamsSchema),
     if (!profile) return c.json({ success: true, profile: null });
     return c.json({ success: true, profile });
   } catch (error: any) {
-    logger.error({ error }, 'Failed to fetch knowledge profile');
+    logger.error({ err: error }, 'Failed to fetch knowledge profile');
     return c.json({ success: false, error: 'Failed to fetch knowledge profile' }, 500);
   }
 });
@@ -471,7 +473,7 @@ app.post('/:agentId/knowledge-profile/rebuild', zValidator('param', agentIdParam
     if (error?.message === 'AGENT_NOT_FOUND') {
       return c.json({ success: false, error: 'Agent not found' }, 404);
     }
-    logger.error({ error }, 'Failed to rebuild knowledge profile');
+    logger.error({ err: error }, 'Failed to rebuild knowledge profile');
     return c.json({ success: false, error: 'Failed to rebuild knowledge profile' }, 500);
   }
 });

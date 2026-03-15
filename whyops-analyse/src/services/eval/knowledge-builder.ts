@@ -1,6 +1,7 @@
 import { createServiceLogger } from '@whyops/shared/logger';
 import { AgentKnowledgeProfile, User } from '@whyops/shared/models';
 import { sendPlainEmail, isMailerooConfigured } from '@whyops/shared/services';
+import { runAgentSummaryChain } from '../../langchain/chains/agent-summary.chain';
 import { runAgentKnowledgeResearchChain } from '../../langchain/chains/agent-knowledge-research.chain';
 import type { AgentKnowledgeResearchResult } from '../../langchain/schemas/agent-knowledge-research.schema';
 import type { AgentProfile } from './agent-profile-extractor';
@@ -73,10 +74,14 @@ function formatToolsSummary(tools: AgentProfile['tools']): string {
   if (tools.length === 0) return '(No tools defined)';
   return tools
     .map((t) => {
-      const params = t.parameters?.properties
-        ? Object.keys(t.parameters.properties).join(', ')
-        : 'none';
-      return `- ${t.name}: ${t.description || '(no description)'} [params: ${params}]`;
+      const params = t.parameters
+        ? JSON.stringify(t.parameters)
+        : 'null';
+      return [
+        `- ${t.name}`,
+        `  description: ${t.description || '(no description)'}`,
+        `  parameters: ${params}`,
+      ].join('\n');
     })
     .join('\n');
 }
@@ -102,11 +107,47 @@ function formatIntelligenceForLLM(fragments: IntelligenceFragment[]): string {
   return `\nREAL-WORLD INTELLIGENCE (gathered from web, social, and code sources):\n${sections.join('\n')}`;
 }
 
-function generateSearchQueries(agentProfile: AgentProfile): string[] {
+function renderList(items: string[]): string {
+  return items.length > 0 ? items.map((item) => `- ${item}`).join('\n') : '(None identified)';
+}
+
+function renderAgentSummary(summary: {
+  role: string;
+  primaryDomain: string;
+  secondaryDomains: string[];
+  summary: string;
+  targetUsers: string[];
+  behavioralRules: string[];
+  toolUsagePatterns: string[];
+  keyInstructions: string[];
+  domainTerms: string[];
+}): string {
+  return [
+    `Summary: ${summary.summary}`,
+    `Role: ${summary.role}`,
+    `Primary domain: ${summary.primaryDomain}`,
+    `Secondary domains: ${summary.secondaryDomains.join(', ') || '(none)'}`,
+    `Target users:\n${renderList(summary.targetUsers)}`,
+    `Behavioral rules:\n${renderList(summary.behavioralRules)}`,
+    `Tool usage patterns:\n${renderList(summary.toolUsagePatterns)}`,
+    `Key instructions:\n${renderList(summary.keyInstructions)}`,
+    `Domain terms:\n${renderList(summary.domainTerms)}`,
+  ].join('\n\n');
+}
+
+function generateSearchQueries(
+  agentProfile: AgentProfile,
+  agentSummary: {
+    primaryDomain: string;
+    secondaryDomains: string[];
+    capabilities: string[];
+  }
+): string[] {
   const queries: string[] = [];
   const name = agentProfile.name;
-  const domains = agentProfile.domains;
+  const domains = [agentSummary.primaryDomain, ...agentSummary.secondaryDomains].filter(Boolean);
   const toolNames = agentProfile.tools.slice(0, 5).map((t) => t.name);
+  const capabilityTerms = agentSummary.capabilities.slice(0, 3);
 
   queries.push(`${name} AI agent`);
   queries.push(`${domains[0] || 'AI'} agent problems failures edge cases`);
@@ -119,6 +160,9 @@ function generateSearchQueries(agentProfile: AgentProfile): string[] {
 
   queries.push(`LLM agent ${domains[0] || ''} failure modes common bugs`);
   queries.push(`${domains[0] || 'AI'} agent security prompt injection`);
+  if (capabilityTerms.length > 0) {
+    queries.push(`${name} ${capabilityTerms.join(' ')} best practices`);
+  }
 
   return queries;
 }
@@ -128,12 +172,28 @@ function generateSearchQueries(agentProfile: AgentProfile): string[] {
 // ---------------------------------------------------------------------------
 async function executeBuild(input: BuildKnowledgeInput): Promise<KnowledgeProfile> {
   const { agentProfile, userId, projectId, environmentId, judgeModel } = input;
+  const toolsSummary = formatToolsSummary(agentProfile.tools);
+
+  const agentSummary = await runAgentSummaryChain(
+    {
+      agentName: agentProfile.name,
+      segments: agentProfile.systemPrompt.segments,
+      toolsSummary,
+      toolCount: agentProfile.tools.length,
+    },
+    judgeModel
+  );
 
   // Step 1: Generate search queries from agent profile
-  const searchQueries = generateSearchQueries(agentProfile);
+  const searchQueries = generateSearchQueries(agentProfile, agentSummary);
 
   logger.info(
-    { agentId: agentProfile.agentId, queryCount: searchQueries.length },
+    {
+      agentId: agentProfile.agentId,
+      queryCount: searchQueries.length,
+      summaryDomain: agentSummary.primaryDomain,
+      summaryCapabilities: agentSummary.capabilities.length,
+    },
     'Gathering real-world intelligence'
   );
 
@@ -147,17 +207,13 @@ async function executeBuild(input: BuildKnowledgeInput): Promise<KnowledgeProfil
   const result: AgentKnowledgeResearchResult = await runAgentKnowledgeResearchChain(
     {
       agentName: agentProfile.name,
-      persona: agentProfile.persona,
-      domains: agentProfile.domains.join(', '),
-      systemPrompt: agentProfile.systemPrompt.fullText,
-      toolsSummary: formatToolsSummary(agentProfile.tools),
+      persona: agentSummary.role,
+      domains: [agentSummary.primaryDomain, ...agentSummary.secondaryDomains].join(', '),
+      agentSummary: renderAgentSummary(agentSummary),
+      toolsSummary,
       toolCount: agentProfile.tools.length,
-      constraints: agentProfile.constraints.length > 0
-        ? agentProfile.constraints.map((c) => `- ${c}`).join('\n')
-        : '(No constraints extracted)',
-      capabilities: agentProfile.capabilities.length > 0
-        ? agentProfile.capabilities.map((c) => `- ${c}`).join('\n')
-        : '(No capabilities extracted)',
+      constraints: renderList(agentSummary.constraints),
+      capabilities: renderList(agentSummary.capabilities),
       additionalContext,
     },
     judgeModel
@@ -301,7 +357,7 @@ export function startBackgroundKnowledgeBuild(input: BuildKnowledgeInput): void 
         }
       }
     } catch (error) {
-      logger.error({ error, agentId }, 'Background knowledge build failed');
+      logger.error({ err: error instanceof Error ? error : new Error(String(error)), agentId }, 'Background knowledge build failed');
     } finally {
       buildingAgents.delete(agentId);
     }

@@ -1,28 +1,10 @@
 import { Sequelize } from 'sequelize';
 import env from '../config/env';
-import { buildPgSslConfig, parseDatabaseUrl } from '../utils/helpers';
 import logger from '../utils/logger';
+import { getDatabaseSslConfig, getSequelizeConnectionConfig } from './connection-config';
+import { runPendingMigrations } from './run-migrations';
 
-let dbConfig: any;
-
-if (env.DATABASE_URL) {
-  const parsed = parseDatabaseUrl(env.DATABASE_URL);
-  dbConfig = {
-    host: parsed.host,
-    port: parsed.port,
-    database: parsed.database,
-    username: parsed.username,
-    password: parsed.password,
-  };
-} else {
-  dbConfig = {
-    host: env.DB_HOST,
-    port: env.DB_PORT,
-    database: env.DB_NAME,
-    username: env.DB_USER,
-    password: env.DB_PASSWORD,
-  };
-}
+const dbConfig = getSequelizeConnectionConfig();
 
 export const sequelize = new Sequelize({
   ...dbConfig,
@@ -32,13 +14,7 @@ export const sequelize = new Sequelize({
     // which can happen when schema changes or with connection pooling issues in some environments.
     // This forces pg to use simple queries.
     binary: false,
-    ssl:
-      buildPgSslConfig({
-        databaseUrl: env.DATABASE_URL,
-        dbHost: dbConfig.host,
-        explicitSsl: env.DB_SSL,
-        rejectUnauthorized: env.DB_SSL_REJECT_UNAUTHORIZED,
-      }) || undefined,
+    ssl: getDatabaseSslConfig() || undefined,
   },
   benchmark: true,
   logging: (sql, timingMs) => {
@@ -67,19 +43,12 @@ export async function initDatabase() {
   try {
     await sequelize.authenticate();
     logger.info('Database connection established successfully');
-    
-    // Note: Using migrations for schema changes, not sync({ alter: true })
-    // Sync with alter causes issues with constraint naming in PostgreSQL
-    // Run `npm run db:migrate` to apply schema changes
-    if (env.NODE_ENV === 'development') {
-      try {
-        // Only sync in development to create tables if they don't exist
-        // This is safe as it won't alter existing tables
-        await sequelize.sync();
-        logger.info('Database synchronized');
-      } catch (syncError) {
-        logger.warn({ error: syncError }, 'Database sync failed, ignoring to allow startup');
-      }
+
+    const executedMigrations = await runPendingMigrations(sequelize);
+    if (executedMigrations.length > 0) {
+      logger.info({ count: executedMigrations.length, migrations: executedMigrations }, 'Database migrations applied');
+    } else {
+      logger.info('Database schema already up to date');
     }
   } catch (error) {
     logger.error({ error }, 'Unable to connect to the database');

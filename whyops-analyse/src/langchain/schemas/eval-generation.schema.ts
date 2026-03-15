@@ -11,20 +11,20 @@ export const EvalConversationTurnSchema = z.object({
     .array(
       z.object({
         name: z.string().describe('Tool name to be called'),
-        arguments: z.record(z.any()).optional().describe('Expected key arguments'),
+        arguments: z.record(z.string()).nullable().describe('Expected key arguments'),
       })
     )
-    .optional()
+    .nullable()
     .describe('Tools the agent should call in this turn (only for assistant turns)'),
-  expected_behavior: z.string().optional().describe('Description of expected agent behavior'),
+  expected_behavior: z.string().nullable().describe('Description of expected agent behavior'),
 });
 export type EvalConversationTurn = z.infer<typeof EvalConversationTurnSchema>;
 
 export const EvalExpectedOutcomeSchema = z.object({
-  tools_called: z.array(z.string()).optional().describe('Tool names that should be called across the conversation'),
-  key_assertions: z.array(z.string()).optional().describe('Key assertions about the response (natural language)'),
-  refusal_expected: z.boolean().optional().describe('Whether the agent should refuse this request'),
-  quality_criteria: z.array(z.string()).optional().describe('Quality criteria for evaluating the response'),
+  tools_called: z.array(z.string()).nullable().describe('Tool names that should be called across the conversation'),
+  key_assertions: z.array(z.string()).nullable().describe('Key assertions about the response (natural language)'),
+  refusal_expected: z.boolean().nullable().describe('Whether the agent should refuse this request'),
+  quality_criteria: z.array(z.string()).nullable().describe('Quality criteria for evaluating the response'),
 });
 export type EvalExpectedOutcome = z.infer<typeof EvalExpectedOutcomeSchema>;
 

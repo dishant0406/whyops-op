@@ -15,7 +15,7 @@ export interface AgentKnowledgeResearchInput {
   agentName: string;
   persona: string;
   domains: string;
-  systemPrompt: string;
+  agentSummary: string;
   toolsSummary: string;
   toolCount: number;
   constraints: string;
@@ -45,7 +45,7 @@ export async function runAgentKnowledgeResearchChain(
         agentName: input.agentName,
         persona: input.persona,
         domains: input.domains,
-        systemPrompt: input.systemPrompt || '(No system prompt available)',
+        agentSummary: input.agentSummary || '(No agent summary available)',
         toolsSummary: input.toolsSummary || '(No tools defined)',
         toolCount: String(input.toolCount),
         constraints: input.constraints || '(No constraints extracted)',

@@ -7,7 +7,7 @@ export const agentKnowledgeResearchPrompt = ChatPromptTemplate.fromMessages([
     'system',
     `You are an expert AI agent analyst and domain researcher. Your job is to deeply understand what an AI agent does, what domain it operates in, and build comprehensive knowledge about that domain to help generate robust evaluation test cases.
 
-You will be given an agent's system prompt, its available tools, detected domains, and extracted constraints. From this, you must produce a thorough domain knowledge profile.
+You will be given an agent's synthesized full-prompt summary, its available tools, detected domains, and extracted constraints. From this, you must produce a thorough domain knowledge profile.
 
 RESEARCH APPROACH:
 1. **Domain Classification**: Identify the primary domain and sub-domains this agent operates in.
@@ -36,8 +36,8 @@ AGENT PERSONA: {persona}
 
 DETECTED DOMAINS: {domains}
 
-SYSTEM PROMPT:
-{systemPrompt}
+AGENT SUMMARY:
+{agentSummary}
 
 AVAILABLE TOOLS ({toolCount} total):
 {toolsSummary}

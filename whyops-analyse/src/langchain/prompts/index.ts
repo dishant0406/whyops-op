@@ -31,6 +31,11 @@ export {
   agentKnowledgeResearchPrompt,
   AGENT_KNOWLEDGE_RESEARCH_VERSION,
 } from './agent-knowledge-research.prompt';
+export {
+  agentSegmentExtractionPrompt,
+  agentSummarySynthesisPrompt,
+  AGENT_SUMMARY_VERSION,
+} from './agent-summary.prompt';
 
 export {
   evalGenerationPrompt,

@@ -77,6 +77,7 @@ export const EvalGenerationService = {
     // Validate agent
     const agent = await Agent.findOne({
       where: { id: agentId, userId, projectId, environmentId },
+      attributes: ['id'],
     });
     if (!agent) throw new Error('AGENT_NOT_FOUND');
 
@@ -147,8 +148,23 @@ export const EvalGenerationService = {
             subcategory: e.subcategory || undefined,
             title: e.title,
             description: e.description,
-            conversation: e.conversation,
-            expectedOutcome: e.expected_outcome,
+            conversation: e.conversation.map((turn) => ({
+              role: turn.role,
+              content: turn.content,
+              expected_tool_calls: turn.expected_tool_calls
+                ? turn.expected_tool_calls.map((toolCall) => ({
+                    name: toolCall.name,
+                    arguments: toolCall.arguments || undefined,
+                  }))
+                : undefined,
+              expected_behavior: turn.expected_behavior || undefined,
+            })),
+            expectedOutcome: {
+              tools_called: e.expected_outcome.tools_called || undefined,
+              key_assertions: e.expected_outcome.key_assertions || undefined,
+              refusal_expected: e.expected_outcome.refusal_expected ?? undefined,
+              quality_criteria: e.expected_outcome.quality_criteria || undefined,
+            },
             scoringRubric: e.scoring_rubric,
             difficulty: e.difficulty,
             toolsTested: e.tools_tested,
@@ -191,7 +207,7 @@ export const EvalGenerationService = {
         summary,
       };
     } catch (error: any) {
-      logger.error({ agentId, runId: run.id, error }, 'Eval generation failed');
+      logger.error({ agentId, runId: run.id, err: error instanceof Error ? error : new Error(String(error)) }, 'Eval generation failed');
       await run.update({
         status: 'failed',
         error: error?.message || String(error),
@@ -261,6 +277,7 @@ export const EvalGenerationService = {
   }) {
     const agent = await Agent.findOne({
       where: { id: input.agentId, userId: input.userId, projectId: input.projectId, environmentId: input.environmentId },
+      attributes: ['id'],
     });
     if (!agent) throw new Error('AGENT_NOT_FOUND');
 

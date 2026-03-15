@@ -3,6 +3,15 @@ import { createServiceLogger } from '@whyops/shared/logger';
 
 const logger = createServiceLogger('analyse:eval:intelligence');
 
+function summarizeError(error: unknown): { message?: string; status?: number; code?: string } {
+  const err = error as any;
+  return {
+    message: err?.message || String(error),
+    status: err?.status || err?.response?.status,
+    code: err?.code,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -24,7 +33,7 @@ export interface IntelligenceGatherResult {
 }
 
 // ---------------------------------------------------------------------------
-// Linkup Provider (primary web search)
+// Linkup Provider — uses the same API pattern as LlmCostService
 // ---------------------------------------------------------------------------
 async function fetchLinkup(queries: string[]): Promise<IntelligenceFragment[]> {
   const apiKey = env.LINKUP_API_KEY;
@@ -43,31 +52,44 @@ async function fetchLinkup(queries: string[]): Promise<IntelligenceFragment[]> {
         body: JSON.stringify({
           q: query,
           depth: 'standard',
-          outputType: 'searchResults',
+          outputType: 'sourcedAnswer',
           includeImages: false,
           includeSources: true,
         }),
       });
 
       if (!response.ok) {
-        logger.warn({ status: response.status, query }, 'Linkup search failed');
+        const body = await response.text().catch(() => '');
+        logger.warn({ status: response.status, query, body: body.slice(0, 200) }, 'Linkup search failed');
         continue;
       }
 
       const data = (await response.json()) as any;
-      const results = data.results || data.searchResults || [];
 
-      for (const result of (Array.isArray(results) ? results : []).slice(0, 5)) {
+      // Linkup sourcedAnswer returns { answer: string, sources: [{name, url, snippet}] }
+      if (data.answer) {
         fragments.push({
           source: 'linkup',
           type: 'general',
-          title: result.title || result.name || query,
-          content: result.content || result.snippet || result.description || '',
-          url: result.url || result.link,
+          title: query,
+          content: typeof data.answer === 'string' ? data.answer.slice(0, 2000) : JSON.stringify(data.answer).slice(0, 2000),
         });
       }
+
+      const sources = data.sources || [];
+      for (const src of (Array.isArray(sources) ? sources : []).slice(0, 3)) {
+        if (src.name || src.snippet || src.url) {
+          fragments.push({
+            source: 'linkup',
+            type: 'general',
+            title: src.name || query,
+            content: src.snippet || src.name || '',
+            url: src.url,
+          });
+        }
+      }
     } catch (error) {
-      logger.warn({ error, query }, 'Linkup search error');
+      logger.warn({ err: summarizeError(error), query }, 'Linkup search error');
     }
   }
 
@@ -77,72 +99,48 @@ async function fetchLinkup(queries: string[]): Promise<IntelligenceFragment[]> {
 // ---------------------------------------------------------------------------
 // Hacker News Algolia Provider (zero auth)
 // ---------------------------------------------------------------------------
-interface HNHit {
-  objectID: string;
-  title?: string;
-  story_text?: string;
-  comment_text?: string;
-  url?: string;
-  author: string;
-  points?: number;
-  num_comments?: number;
-  created_at: string;
-}
-
 async function fetchHackerNews(queries: string[]): Promise<IntelligenceFragment[]> {
   const fragments: IntelligenceFragment[] = [];
 
   for (const query of queries.slice(0, 3)) {
     try {
-      const url = new URL('https://hn.algolia.com/api/v1/search');
-      url.searchParams.set('query', query);
-      url.searchParams.set('tags', 'story');
-      url.searchParams.set('hitsPerPage', '10');
-      url.searchParams.set('numericFilters', 'points>5');
+      // Simple search — no numericFilters to avoid format issues
+      const params = new URLSearchParams({
+        query,
+        tags: 'story',
+        hitsPerPage: '10',
+      });
 
-      const response = await fetch(url.toString());
-      if (!response.ok) continue;
+      const response = await fetch(`https://hn.algolia.com/api/v1/search?${params.toString()}`);
+      if (!response.ok) {
+        logger.warn({ status: response.status, query }, 'HN search returned non-ok');
+        continue;
+      }
 
-      const data = (await response.json()) as { hits: HNHit[] };
+      const data = (await response.json()) as { hits: Array<{
+        objectID: string;
+        title?: string;
+        story_text?: string;
+        url?: string;
+        points?: number;
+        num_comments?: number;
+        created_at?: string;
+      }> };
 
-      for (const hit of data.hits.slice(0, 5)) {
+      // Filter to stories with some engagement (>5 points) in code
+      for (const hit of (data.hits || []).filter((h) => (h.points || 0) > 3).slice(0, 5)) {
         fragments.push({
           source: 'hn',
           type: 'discussion',
           title: hit.title || query,
-          content: hit.story_text || `${hit.title} (${hit.points} points, ${hit.num_comments} comments)`,
+          content: hit.story_text || `${hit.title || ''} (${hit.points ?? 0} points, ${hit.num_comments ?? 0} comments)`,
           url: hit.url || `https://news.ycombinator.com/item?id=${hit.objectID}`,
           score: hit.points,
           date: hit.created_at,
         });
       }
-
-      // Also fetch top comments for top stories
-      for (const hit of data.hits.slice(0, 2)) {
-        try {
-          const commentsUrl = `https://hn.algolia.com/api/v1/search?tags=comment,story_${hit.objectID}&hitsPerPage=5`;
-          const commentsResp = await fetch(commentsUrl);
-          if (!commentsResp.ok) continue;
-          const commentsData = (await commentsResp.json()) as { hits: HNHit[] };
-
-          for (const comment of commentsData.hits) {
-            if (comment.comment_text && comment.comment_text.length > 50) {
-              fragments.push({
-                source: 'hn',
-                type: 'discussion',
-                title: `Comment on: ${hit.title}`,
-                content: comment.comment_text.slice(0, 1000),
-                url: `https://news.ycombinator.com/item?id=${comment.objectID}`,
-                date: comment.created_at,
-              });
-            }
-          }
-        } catch {
-          // skip comment fetch failures
-        }
-      }
     } catch (error) {
-      logger.warn({ error, query }, 'HN search error');
+      logger.warn({ err: summarizeError(error), query }, 'HN search error');
     }
   }
 
@@ -165,7 +163,6 @@ async function fetchGitHub(queries: string[]): Promise<IntelligenceFragment[]> {
 
   for (const query of queries.slice(0, 3)) {
     try {
-      // Search repositories
       const repoResp = await fetch(
         `https://api.github.com/search/repositories?q=${encodeURIComponent(query + ' AI agent')}&sort=stars&order=desc&per_page=5`,
         { headers }
@@ -188,7 +185,6 @@ async function fetchGitHub(queries: string[]): Promise<IntelligenceFragment[]> {
           score: repo.stargazers_count,
         });
 
-        // Fetch bug issues for top repos
         try {
           const issuesResp = await fetch(
             `https://api.github.com/search/issues?q=repo:${repo.full_name}+is:issue+label:bug+state:open&sort=reactions&order=desc&per_page=5`,
@@ -214,7 +210,7 @@ async function fetchGitHub(queries: string[]): Promise<IntelligenceFragment[]> {
         }
       }
     } catch (error) {
-      logger.warn({ error, query }, 'GitHub search error');
+      logger.warn({ err: summarizeError(error), query }, 'GitHub search error');
     }
   }
 
@@ -262,7 +258,7 @@ async function getRedditToken(): Promise<string | null> {
 
     return redditToken.token;
   } catch (error) {
-    logger.warn({ error }, 'Reddit auth failed');
+    logger.warn({ err: summarizeError(error) }, 'Reddit auth failed');
     return null;
   }
 }
@@ -272,11 +268,9 @@ async function fetchReddit(queries: string[]): Promise<IntelligenceFragment[]> {
   if (!token) return [];
 
   const fragments: IntelligenceFragment[] = [];
-  const subreddits = ['LocalLLaMA', 'MachineLearning', 'artificial', 'ChatGPT', 'LangChain'];
 
   for (const query of queries.slice(0, 3)) {
     try {
-      // Global search
       const response = await fetch(
         `https://oauth.reddit.com/search.json?q=${encodeURIComponent(query)}&limit=10&sort=relevance&t=month`,
         {
@@ -305,39 +299,7 @@ async function fetchReddit(queries: string[]): Promise<IntelligenceFragment[]> {
         });
       }
     } catch (error) {
-      logger.warn({ error, query }, 'Reddit search error');
-    }
-  }
-
-  // Also search specific subreddits
-  for (const sub of subreddits.slice(0, 2)) {
-    try {
-      const response = await fetch(
-        `https://oauth.reddit.com/r/${sub}/search.json?q=${encodeURIComponent(queries[0] || '')}&restrict_sr=on&limit=5&sort=top&t=month`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'User-Agent': 'whyops-intel/1.0',
-          },
-        }
-      );
-
-      if (!response.ok) continue;
-      const data = (await response.json()) as any;
-
-      for (const post of (data?.data?.children || []).slice(0, 3)) {
-        const d = post.data;
-        fragments.push({
-          source: 'reddit',
-          type: 'discussion',
-          title: `[r/${sub}] ${d.title}`,
-          content: (d.selftext || '').slice(0, 800) || d.title,
-          url: `https://reddit.com${d.permalink}`,
-          score: d.score,
-        });
-      }
-    } catch {
-      // skip subreddit failures
+      logger.warn({ err: summarizeError(error), query }, 'Reddit search error');
     }
   }
 
@@ -384,7 +346,7 @@ async function fetchTwitter(queries: string[]): Promise<IntelligenceFragment[]> 
         });
       }
     } catch (error) {
-      logger.warn({ error, query }, 'Twitter search error');
+      logger.warn({ err: summarizeError(error), query }, 'Twitter search error');
     }
   }
 
@@ -419,7 +381,6 @@ export async function gatherIntelligence(queries: string[]): Promise<Intelligenc
     'Starting intelligence gathering'
   );
 
-  // Fan out all configured providers in parallel
   const results = await Promise.allSettled(
     configured.map(async (provider) => {
       const start = Date.now();
@@ -436,6 +397,8 @@ export async function gatherIntelligence(queries: string[]): Promise<Intelligenc
   for (const result of results) {
     if (result.status === 'fulfilled') {
       allFragments.push(...result.value);
+    } else {
+      logger.warn({ err: summarizeError(result.reason) }, 'Provider failed entirely');
     }
   }
 

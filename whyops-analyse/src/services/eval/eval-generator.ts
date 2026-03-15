@@ -8,6 +8,17 @@ import type { KnowledgeProfile } from './knowledge-builder';
 
 const logger = createServiceLogger('analyse:eval:generator');
 
+function summarizeError(error: unknown) {
+  const err = error as any;
+  return {
+    name: err?.name,
+    message: err?.message,
+    stack: err?.stack,
+    code: err?.code,
+    lc_error_code: err?.lc_error_code,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -183,7 +194,7 @@ async function stageGenerate(
   const all: GeneratedEvalCase[] = [];
   for (const r of results) {
     if (r.status === 'fulfilled') all.push(...r.value);
-    else logger.error({ error: r.reason }, 'Category generation failed');
+    else logger.error({ error: summarizeError(r.reason) }, 'Category generation failed');
   }
 
   onStageUpdate?.('generate', `Generated ${all.length} candidates`);
@@ -225,7 +236,7 @@ async function stageValidate(
         }
       }
     } catch (error) {
-      logger.warn({ error, batchStart: i }, 'Validation batch failed, keeping all in batch');
+      logger.warn({ err: summarizeError(error), batchStart: i }, 'Validation batch failed, keeping all in batch');
       kept.push(...batch);
     }
   }
@@ -314,7 +325,7 @@ async function stageCritique(
         judgeModel
       );
     } catch (error) {
-      logger.warn({ error, round }, 'Critique chain failed, skipping round');
+      logger.warn({ err: summarizeError(error), round }, 'Critique chain failed, skipping round');
       break;
     }
 
@@ -363,7 +374,7 @@ async function stageCritique(
         current.push(...gapEvals);
         logger.info({ added: gapEvals.length }, 'Added gap-filling evals');
       } catch (error) {
-        logger.warn({ error }, 'Gap regeneration failed');
+        logger.warn({ error: summarizeError(error) }, 'Gap regeneration failed');
       }
     }
 
