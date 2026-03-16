@@ -200,7 +200,7 @@ export const useAuthStore = create<AuthState>((Set, Get) => ({
   signOut: async () => {
     Set({ status: "loading", error: null });
     try {
-      await apiRequest("/api/auth/sign-out", { method: "POST" });
+      await apiRequest("/api/auth/sign-out", { method: "POST", body: {} });
       Set({ user: null, hasSession: false, sessionChecked: true, status: "idle", onboardingProgress: null });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to sign out.";
