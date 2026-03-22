@@ -78,7 +78,7 @@ export const useThreadsStore = create<ThreadsState>()(
         try {
           const params: Record<string, unknown> = { page, count };
           if (agentId) {
-            params.entityId = agentId;
+            params.agentId = agentId;
           }
 
           const response = await apiClient.get<{ threads: Thread[]; pagination: Pagination }>(
