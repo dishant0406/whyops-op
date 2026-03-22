@@ -19,6 +19,11 @@ const logger = pino({
       return { level: label.toUpperCase() };
     },
   },
+  serializers: {
+    // Serialize both `err` (pino standard) and `error` (our convention) keys
+    err: pino.stdSerializers.err,
+    error: pino.stdSerializers.err,
+  },
   timestamp: pino.stdTimeFunctions.isoTime,
 });
 

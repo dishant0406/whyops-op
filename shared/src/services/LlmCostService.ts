@@ -200,8 +200,21 @@ export class LlmCostService {
       throw new Error(`Linkup API error: ${response.statusText}`);
     }
 
-    const data = await response.json();
-    return data; 
+    const data = await response.json() as Record<string, any>;
+
+    // Linkup structured output is nested under `output`
+    const result = data?.output ?? data;
+
+    // Validate that the response has the required pricing fields before returning
+    if (
+      typeof result?.inputTokenPricePerMillionToken !== 'number' ||
+      typeof result?.outputTokenPricePerMillionToken !== 'number'
+    ) {
+      logger.warn({ modelName: query, rawResponse: data }, 'Linkup API returned unexpected structure; missing pricing fields');
+      return null;
+    }
+
+    return result;
   }
 }
 
