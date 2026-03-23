@@ -105,6 +105,7 @@ jobs:
             "JUDGE_LLM_MODEL=${{ secrets.JUDGE_LLM_MODEL || 'azure/gpt-4.1' }}"
             "JUDGE_LLM_TEMPERATURE=${{ secrets.JUDGE_LLM_TEMPERATURE || '0' }}"
             "JUDGE_MAX_RETRIES=${{ secrets.JUDGE_MAX_RETRIES || '2' }}"
+            "LINKUP_API_KEY=${{ secrets.LINKUP_API_KEY }}"
             "ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}"
           )
 
@@ -229,6 +230,7 @@ jobs:
             "JUDGE_LLM_MODEL=${{ secrets.JUDGE_LLM_MODEL || 'azure/gpt-4.1' }}"
             "JUDGE_LLM_TEMPERATURE=${{ secrets.JUDGE_LLM_TEMPERATURE || '0' }}"
             "JUDGE_MAX_RETRIES=${{ secrets.JUDGE_MAX_RETRIES || '2' }}"
+            "LINKUP_API_KEY=${{ secrets.LINKUP_API_KEY }}"
             "ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}"
           )
 
@@ -353,6 +355,7 @@ jobs:
             "JUDGE_LLM_MODEL=${{ secrets.JUDGE_LLM_MODEL || 'azure/gpt-4.1' }}"
             "JUDGE_LLM_TEMPERATURE=${{ secrets.JUDGE_LLM_TEMPERATURE || '0' }}"
             "JUDGE_MAX_RETRIES=${{ secrets.JUDGE_MAX_RETRIES || '2' }}"
+            "LINKUP_API_KEY=${{ secrets.LINKUP_API_KEY }}"
             "ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}"
           )
 
