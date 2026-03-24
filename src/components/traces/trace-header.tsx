@@ -10,6 +10,7 @@ import {
   Clock,
   Cpu,
   GitGraph,
+  Layers,
   List,
   RefreshCw,
   Scale,
@@ -35,13 +36,22 @@ export function TraceHeader({ trace, view, onViewChange, agentId }: TraceHeaderP
 
   // Model display: use last-used model name; show count badge if multiple models
   const modelBreakdowns = trace.models ?? [];
-  const primaryModel = modelBreakdowns.find((m) => m.isLastModel)?.model ?? trace.model;
+  const lastBreakdown = modelBreakdowns.find((m) => m.isLastModel);
+  const primaryModel = lastBreakdown?.model ?? trace.model;
   const modelCount = modelBreakdowns.length;
   const modelLabel = primaryModel
     ? modelCount > 1
       ? `${primaryModel} +${modelCount - 1}`
       : primaryModel
     : "N/A";
+
+  // Context window: total input+output across all models / last model's context window
+  const totalUsedTokens = modelBreakdowns.reduce((sum, m) => sum + m.inputTokens + m.outputTokens, 0) || trace.totalTokens;
+  const lastContextWindow = lastBreakdown?.cost?.contextWindow ? Number(lastBreakdown.cost.contextWindow) : null;
+  const ctxFillPct = lastContextWindow && lastContextWindow > 0 ? Math.min(totalUsedTokens / lastContextWindow, 1) : null;
+  const contextLabel = lastContextWindow
+    ? `${totalUsedTokens.toLocaleString()} / ${(lastContextWindow / 1000).toFixed(0)}k (${((ctxFillPct ?? 0) * 100).toFixed(1)}%)`
+    : null;
   const agentHref = agentId
     ? `/agents/${agentId}`
       : trace.agentId
@@ -87,6 +97,9 @@ export function TraceHeader({ trace, view, onViewChange, agentId }: TraceHeaderP
           <MetricPill label="Cost" value={cost} />
           <MetricPill icon={<RefreshCw className="h-3.5 w-3.5 rotate-90" />} label="Tokens" value={trace.totalTokens.toLocaleString()} />
           <MetricPill icon={<Cpu className="h-3.5 w-3.5" />} label="Model" value={modelLabel} />
+          {contextLabel && (
+            <MetricPill icon={<Layers className="h-3.5 w-3.5" />} label="Context" value={contextLabel} />
+          )}
         </div>
       </div>
 

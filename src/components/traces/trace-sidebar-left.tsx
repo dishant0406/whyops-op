@@ -367,47 +367,24 @@ function ModelBadgeItem({ model }: { model: string }) {
 }
 
 function ModelBreakdownItem({ breakdown }: { breakdown: TraceModelBreakdown }) {
-  const contextWindow = breakdown.cost?.contextWindow ? Number(breakdown.cost.contextWindow) : null;
-  const fillPct = breakdown.contextWindowFillPct;
-  const tokensUsed = breakdown.contextWindowUsed;
-
   return (
-    <div className="space-y-1.5 rounded-sm border border-border/40 bg-surface-2/20 px-2.5 py-2 text-xs">
-      <div className="flex items-center justify-between gap-2">
-        <span className="min-w-0 flex-1 truncate font-mono text-foreground" title={breakdown.model}>
+    <div className="rounded-sm border border-border/40 bg-card px-3 py-2.5 text-xs">
+      <div className="mb-1.5 flex items-center gap-2">
+        <span className="min-w-0 flex-1 truncate font-mono font-medium text-foreground" title={breakdown.model}>
           {breakdown.model}
         </span>
         {breakdown.isLastModel && (
-          <span className="shrink-0 rounded-sm border border-border/50 bg-surface-2/40 px-1 py-0.5 text-[10px] text-muted-foreground">
+          <span className="shrink-0 rounded border border-border/60 px-1.5 py-0.5 text-[10px] text-muted-foreground">
             last
           </span>
         )}
       </div>
-
       <div className="flex items-center justify-between text-muted-foreground">
         <span>{breakdown.totalTokens.toLocaleString()} tokens</span>
         {breakdown.totalCost > 0 && (
-          <span className="font-medium text-foreground">{formatCostUsd(breakdown.totalCost)}</span>
+          <span className="tabular-nums text-foreground">{formatCostUsd(breakdown.totalCost)}</span>
         )}
       </div>
-
-      {breakdown.isLastModel && contextWindow !== null && tokensUsed !== undefined && (
-        <div className="space-y-1">
-          <div className="flex justify-between text-[10px] text-muted-foreground">
-            <span>Context window</span>
-            <span>
-              {tokensUsed.toLocaleString()} / {contextWindow.toLocaleString()}
-              {fillPct !== undefined ? ` (${(fillPct * 100).toFixed(1)}%)` : ""}
-            </span>
-          </div>
-          <div className="h-1 w-full overflow-hidden rounded-full bg-surface-2/60">
-            <div
-              className="h-full rounded-full bg-primary/60 transition-all"
-              style={{ width: `${Math.min((fillPct ?? 0) * 100, 100)}%` }}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -440,6 +417,7 @@ export function TraceSidebarLeft({ trace, isCollapsed, onToggle }: TraceSidebarL
   const [openSections, setOpenSections] = React.useState<SectionKey[]>([
     "agent",
     "stats",
+    "models",
     "tools",
     "systemPrompt",
   ]);
