@@ -322,8 +322,16 @@ export async function readRedisStreamGroup<T = JsonRecord>(
       }
     }
     return result;
-  } catch (error) {
+  } catch (error: any) {
+    const message = String(error?.message || error || '');
+    if (message.includes('NOGROUP')) {
+      logger.warn({ stream, group }, 'Redis stream group missing, recreating...');
+      await ensureRedisConsumerGroup(stream, group);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      return [];
+    }
     logger.warn({ error, stream, group, consumer }, 'Failed to read Redis stream group');
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     return [];
   }
 }
@@ -352,8 +360,15 @@ export async function reclaimIdleRedisStreamMessages<T = JsonRecord>(
       messages,
       'Failed to parse reclaimed Redis stream payload'
     );
-  } catch (error) {
-    const message = String((error as any)?.message || error || '');
+  } catch (error: any) {
+    const message = String(error?.message || error || '');
+
+    if (message.includes('NOGROUP')) {
+      logger.warn({ stream, group }, 'Redis stream group missing in reclaim, recreating...');
+      await ensureRedisConsumerGroup(stream, group);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      return [];
+    }
 
     if (message.includes('unknown command') && message.includes('XAUTOCLAIM')) {
       try {
@@ -362,11 +377,12 @@ export async function reclaimIdleRedisStreamMessages<T = JsonRecord>(
           group,
           '0-0',
           '+',
-          count,
-          { IDLE: minIdleMs }
+          count
         );
 
-        const ids = (pending ?? []).map((entry: { id: string }) => entry.id);
+        const ids = (pending ?? [])
+          .filter((entry: { id: string; millisecondsSinceLastDelivery: number }) => entry.millisecondsSinceLastDelivery >= minIdleMs)
+          .map((entry: { id: string }) => entry.id);
         if (ids.length === 0) return [];
 
         const claimed = await (client as any).xClaim(
@@ -382,16 +398,26 @@ export async function reclaimIdleRedisStreamMessages<T = JsonRecord>(
           messages,
           'Failed to parse reclaimed Redis stream payload'
         );
-      } catch (fallbackError) {
+      } catch (fallbackError: any) {
+        const fallbackMessage = String(fallbackError?.message || fallbackError || '');
+        if (fallbackMessage.includes('NOGROUP')) {
+          logger.warn({ stream, group }, 'Redis stream group missing in reclaim fallback, recreating...');
+          await ensureRedisConsumerGroup(stream, group);
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          return [];
+        }
+
         logger.warn(
           { error: fallbackError, stream, group, consumer },
           'Failed to reclaim idle Redis stream messages with XCLAIM fallback'
         );
+        await new Promise((resolve) => setTimeout(resolve, 1000));
         return [];
       }
     }
 
     logger.warn({ error, stream, group, consumer }, 'Failed to reclaim idle Redis stream messages');
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     return [];
   }
 }
