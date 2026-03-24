@@ -88,3 +88,16 @@ export function getPrimaryCostRate(costs?: TraceCostRate[] | null): TraceCostRat
   if (!costs || costs.length === 0) return null;
   return costs[0] ?? null;
 }
+
+/**
+ * Get total cost from backend-computed value, falling back to event-based calculation.
+ */
+export function getTraceTotalCost(
+  backendTotalCost: number | undefined,
+  events: TraceEvent[],
+  legacyCostRate?: TraceCostRate | null,
+): number {
+  if (typeof backendTotalCost === "number") return backendTotalCost;
+  const { total } = calculateTraceCost(events, legacyCostRate);
+  return total;
+}

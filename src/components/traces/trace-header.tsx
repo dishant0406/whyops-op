@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { TraceDetail } from "@/stores/traceDetailStore";
-import { calculateTraceCost, formatCostUsd, getPrimaryCostRate } from "@/lib/trace-cost";
+import { formatCostUsd, getPrimaryCostRate, getTraceTotalCost } from "@/lib/trace-cost";
 import { formatDuration } from "@/lib/trace-format";
 import { cn } from "@/lib/utils";
 import {
@@ -30,8 +30,18 @@ export function TraceHeader({ trace, view, onViewChange, agentId }: TraceHeaderP
   const duration = formatDuration(trace.duration);
 
   const pricing = getPrimaryCostRate(trace.cost ?? null);
-  const { total } = calculateTraceCost(trace.events ?? [], pricing);
-  const cost = formatCostUsd(total);
+  const totalCostValue = getTraceTotalCost(trace.totalCost, trace.events ?? [], pricing);
+  const cost = formatCostUsd(totalCostValue);
+
+  // Model display: use last-used model name; show count badge if multiple models
+  const modelBreakdowns = trace.models ?? [];
+  const primaryModel = modelBreakdowns.find((m) => m.isLastModel)?.model ?? trace.model;
+  const modelCount = modelBreakdowns.length;
+  const modelLabel = primaryModel
+    ? modelCount > 1
+      ? `${primaryModel} +${modelCount - 1}`
+      : primaryModel
+    : "N/A";
   const agentHref = agentId
     ? `/agents/${agentId}`
       : trace.agentId
@@ -76,7 +86,7 @@ export function TraceHeader({ trace, view, onViewChange, agentId }: TraceHeaderP
           <MetricPill icon={<Clock className="h-3.5 w-3.5" />} label="Duration" value={duration} />
           <MetricPill label="Cost" value={cost} />
           <MetricPill icon={<RefreshCw className="h-3.5 w-3.5 rotate-90" />} label="Tokens" value={trace.totalTokens.toLocaleString()} />
-          <MetricPill icon={<Cpu className="h-3.5 w-3.5" />} label="Model" value={trace.model || "N/A"} />
+          <MetricPill icon={<Cpu className="h-3.5 w-3.5" />} label="Model" value={modelLabel} />
         </div>
       </div>
 

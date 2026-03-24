@@ -41,8 +41,22 @@ export interface TraceCostRate {
   inputTokenPricePerMillionToken: number;
   outputTokenPricePerMillionToken: number;
   cachedTokenPricePerMillionToken: number;
+  contextWindow?: number | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TraceModelBreakdown {
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  cachedTokens: number;
+  totalTokens: number;
+  totalCost: number;
+  cost: TraceCostRate | null;
+  isLastModel: boolean;
+  contextWindowUsed?: number;
+  contextWindowFillPct?: number;
 }
 
 export interface TraceDetail {
@@ -65,7 +79,12 @@ export interface TraceDetail {
   errorCount: number;
   events: TraceEvent[];
   hasLateEvents: boolean;
+  /** @deprecated use models instead */
   cost?: TraceCostRate[];
+  /** Per-model breakdown with costs and token usage */
+  models?: TraceModelBreakdown[];
+  /** Total cost across all models in USD (computed by backend) */
+  totalCost?: number;
 }
 
 interface TraceDetailState {
