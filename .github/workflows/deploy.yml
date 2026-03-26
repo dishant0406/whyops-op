@@ -1,6 +1,15 @@
 name: Deploy to Azure Container Apps
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/whyops-**/**'
+      - 'packages/shared/**'
+      - 'Dockerfile'
+      - 'package.json'
+      - 'package-lock.json'
   workflow_dispatch:
     inputs:
       service:
@@ -18,7 +27,7 @@ env:
 
 jobs:
   deploy-proxy:
-    if: github.event.inputs.service == 'proxy' || github.event.inputs.service == 'all'
+    if: github.event_name == 'push' || github.event.inputs.service == 'proxy' || github.event.inputs.service == 'all'
     runs-on: ubuntu-latest
     environment: production
 
@@ -143,7 +152,7 @@ jobs:
           fi
 
   deploy-analyse:
-    if: github.event.inputs.service == 'analyse' || github.event.inputs.service == 'all'
+    if: github.event_name == 'push' || github.event.inputs.service == 'analyse' || github.event.inputs.service == 'all'
     runs-on: ubuntu-latest
     environment: production
 
@@ -268,7 +277,7 @@ jobs:
           fi
 
   deploy-auth:
-    if: github.event.inputs.service == 'auth' || github.event.inputs.service == 'all'
+    if: github.event_name == 'push' || github.event.inputs.service == 'auth' || github.event.inputs.service == 'all'
     runs-on: ubuntu-latest
     environment: production
 

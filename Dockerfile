@@ -15,14 +15,14 @@ RUN case "$SERVICE" in \
     esac
 
 COPY package.json package-lock.json ./
-COPY shared/package.json ./shared/
-COPY whyops-proxy/package.json ./whyops-proxy/
-COPY whyops-analyse/package.json ./whyops-analyse/
-COPY whyops-auth/package.json ./whyops-auth/
+COPY packages/shared/package.json ./packages/shared/
+COPY apps/whyops-proxy/package.json ./apps/whyops-proxy/
+COPY apps/whyops-analyse/package.json ./apps/whyops-analyse/
+COPY apps/whyops-auth/package.json ./apps/whyops-auth/
 RUN npm ci --install-strategy=nested
 
-COPY shared ./shared
-COPY whyops-${SERVICE} ./whyops-${SERVICE}
+COPY packages/shared ./packages/shared
+COPY apps/whyops-${SERVICE} ./apps/whyops-${SERVICE}
 COPY tsconfig.json ./
 
 RUN npm run build:shared && \
@@ -64,12 +64,12 @@ ENV NODE_ENV=production \
     DB_SSL_REJECT_UNAUTHORIZED=false
 
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/shared ./shared
-COPY --from=builder /app/whyops-${SERVICE} ./whyops-${SERVICE}
+COPY --from=builder /app/packages/shared ./packages/shared
+COPY --from=builder /app/apps/whyops-${SERVICE} ./apps/whyops-${SERVICE}
 
 # Service ports (proxy 8080, analyse 8081, auth 8082)
 EXPOSE 8080 8081 8082
 
 # Start the service directly so the app process receives signals as PID 1.
-WORKDIR /app/whyops-${SERVICE}
+WORKDIR /app/apps/whyops-${SERVICE}
 CMD ["node", "--import", "tsx", "src/index.ts"]

@@ -8,10 +8,8 @@
     "npm": ">=10.0.0"
   },
   "workspaces": [
-    "whyops-proxy",
-    "whyops-analyse",
-    "whyops-auth",
-    "shared"
+    "apps/*",
+    "packages/*"
   ],
   "scripts": {
     "env-add": "node scripts/env-add.js",
@@ -20,15 +18,17 @@
     "deploy:proxy": "node scripts/deploy-gh.js proxy",
     "deploy:analyse": "node scripts/deploy-gh.js analyse",
     "deploy:auth": "node scripts/deploy-gh.js auth",
-    "dev": "concurrently \"npm run dev:proxy\" \"npm run dev:analyse\" \"npm run dev:auth\"",
+    "dev": "concurrently \"npm run dev:proxy\" \"npm run dev:analyse\" \"npm run dev:auth\" \"npm run dev:app\"",
     "dev:proxy": "npm run dev --workspace @whyops/proxy",
     "dev:analyse": "npm run dev --workspace @whyops/analyse",
     "dev:auth": "npm run dev --workspace @whyops/auth",
+    "dev:app": "npm run dev --workspace @whyops/app",
     "build": "npm run build:shared && npm run build:proxy && npm run build:analyse && npm run build:auth",
     "build:shared": "npm run build --workspace @whyops/shared",
     "build:proxy": "npm run build --workspace @whyops/proxy",
     "build:analyse": "npm run build --workspace @whyops/analyse",
     "build:auth": "npm run build --workspace @whyops/auth",
+    "build:app": "npm run build --workspace @whyops/app",
     "db:migrate": "npm run db:migrate --workspace @whyops/shared",
     "db:seed": "npm run db:seed --workspace @whyops/shared",
     "test:auto-threading": "node --import tsx tests/test-auto-threading.ts",
