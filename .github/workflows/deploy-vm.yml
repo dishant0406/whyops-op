@@ -37,8 +37,12 @@ jobs:
             ${{ secrets.ENV_FILE }}
             ENVEOF
 
-            # Install deps and build
-            npm ci --install-strategy=nested
+            # Install deps for backend workspaces only (skip apps/app frontend)
+            npm install --install-strategy=nested \
+              -w packages/shared \
+              -w apps/whyops-proxy \
+              -w apps/whyops-analyse \
+              -w apps/whyops-auth
             npm run build:shared
             npm run build:proxy
             npm run build:analyse
