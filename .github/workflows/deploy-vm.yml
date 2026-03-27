@@ -45,35 +45,25 @@ jobs:
             npm run build:analyse
             npm run build:auth
 
+            # Load env vars into shell so PM2 processes inherit them
+            set -a
+            source /app/.env.production
+            set +a
+
             # Start or reload PM2 processes
-            export NODE_ENV=production
+            _pm2() {
+              local name=$1 dir=$2 file=$3
+              pm2 describe $name > /dev/null 2>&1 \
+                && pm2 reload $name --update-env \
+                || pm2 start $file --name $name \
+                     --interpreter node \
+                     --interpreter-args "--import tsx" \
+                     --cwd $dir
+            }
 
-            pm2 describe proxy > /dev/null 2>&1 \
-              && pm2 reload proxy --update-env \
-              || pm2 start /app/apps/whyops-proxy/src/index.ts \
-                   --name proxy \
-                   --interpreter node \
-                   --interpreter-args "--import tsx" \
-                   --cwd /app/apps/whyops-proxy \
-                   --env-file /app/.env.production
-
-            pm2 describe analyse > /dev/null 2>&1 \
-              && pm2 reload analyse --update-env \
-              || pm2 start /app/apps/whyops-analyse/src/index.ts \
-                   --name analyse \
-                   --interpreter node \
-                   --interpreter-args "--import tsx" \
-                   --cwd /app/apps/whyops-analyse \
-                   --env-file /app/.env.production
-
-            pm2 describe auth > /dev/null 2>&1 \
-              && pm2 reload auth --update-env \
-              || pm2 start /app/apps/whyops-auth/src/index.ts \
-                   --name auth \
-                   --interpreter node \
-                   --interpreter-args "--import tsx" \
-                   --cwd /app/apps/whyops-auth \
-                   --env-file /app/.env.production
+            _pm2 proxy   /app/apps/whyops-proxy   /app/apps/whyops-proxy/src/index.ts
+            _pm2 analyse /app/apps/whyops-analyse /app/apps/whyops-analyse/src/index.ts
+            _pm2 auth    /app/apps/whyops-auth    /app/apps/whyops-auth/src/index.ts
 
             # Persist process list so PM2 restores on reboot
             pm2 save
