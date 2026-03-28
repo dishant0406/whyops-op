@@ -94,12 +94,11 @@ export function TraceHeader({ trace, view, onViewChange, agentId }: TraceHeaderP
         </nav>
 
         <Badge
-          variant="outline"
           className={cn(
-            "h-4.5 px-1.5 text-[10px] font-normal",
+            "px-1.5 text-[10px] font-normal",
             hasErrors
-              ? "border-destructive/40 text-destructive"
-              : "border-border text-muted-foreground"
+              ? "border-destructive/40 bg-destructive/5 text-destructive"
+              : "bg-transparent text-muted-foreground"
           )}
         >
           {hasErrors ? "error" : "ok"}
