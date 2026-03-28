@@ -1,0 +1,26 @@
+{
+  "name": "@whyops/sdk",
+  "version": "0.1.0",
+  "description": "WhyOps SDK for AI agent observability — TypeScript/JavaScript",
+  "type": "module",
+  "main": "./index.ts",
+  "exports": {
+    ".": {
+      "types": "./index.ts",
+      "import": "./index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["whyops", "observability", "ai", "agents", "llm", "tracing"],
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

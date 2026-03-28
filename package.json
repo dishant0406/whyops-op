@@ -29,6 +29,8 @@
     "build:analyse": "npm run build --workspace @whyops/analyse",
     "build:auth": "npm run build --workspace @whyops/auth",
     "build:app": "npm run build --workspace @whyops/app",
+    "build:sdk": "npm run build --workspace @whyops/sdk",
+    "typecheck:sdk": "npm run typecheck --workspace @whyops/sdk",
     "db:migrate": "npm run db:migrate --workspace @whyops/shared",
     "db:seed": "npm run db:seed --workspace @whyops/shared",
     "test:auto-threading": "node --import tsx tests/test-auto-threading.ts",
