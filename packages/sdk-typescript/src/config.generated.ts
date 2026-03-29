@@ -2,7 +2,7 @@
 // Source of truth: packages/sdk/config.json
 // Regenerate: npm run sync:sdk-config (from monorepo root)
 
-export const SDK_VERSION = "0.1.0" as const;
+export const SDK_VERSION = "0.1.1" as const;
 
 export const DEFAULT_PROXY_URL = "https://proxy.whyops.com" as const;
 export const DEFAULT_ANALYSE_URL = "https://a.whyops.com/api" as const;

@@ -27,16 +27,35 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          registry-url: https://registry.npmjs.org
       - run: npm ci
       - run: npm run sync:sdk-config
+      - name: Verify package version
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          test "$PKG_VERSION" = "${{ inputs.version }}"
+        working-directory: packages/sdk-typescript
       - run: npm run build
         working-directory: packages/sdk-typescript
-      - run: npm publish --access public
+      - name: Publish to npm if missing
         working-directory: packages/sdk-typescript
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          TMP_NPMRC="$(mktemp)"
+          trap 'rm -f "$TMP_NPMRC"' EXIT
+          printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN" > "$TMP_NPMRC"
+          export NPM_CONFIG_USERCONFIG="$TMP_NPMRC"
+          npm whoami
+          if npm view "@whyops/sdk@${{ inputs.version }}" version >/dev/null 2>&1; then
+            echo "@whyops/sdk@${{ inputs.version }} already exists, skipping publish"
+            exit 0
+          fi
+          npm publish --access public
       - run: |
+          if git ls-remote --exit-code --tags origin refs/tags/sdk-typescript/v${{ inputs.version }} >/dev/null 2>&1; then
+            echo "Tag sdk-typescript/v${{ inputs.version }} already exists, skipping"
+            exit 0
+          fi
           git tag sdk-typescript/v${{ inputs.version }}
           git push origin sdk-typescript/v${{ inputs.version }}
 
@@ -53,16 +72,27 @@ jobs:
       - run: python -m pip install --upgrade pip build twine
       - run: npm ci
       - run: npm run sync:sdk-config
+      - name: Verify package version
+        run: |
+          python - <<'PY'
+          import pathlib, tomllib
+          data = tomllib.loads(pathlib.Path("pyproject.toml").read_text())
+          assert data["project"]["version"] == "${{ inputs.version }}"
+          PY
+        working-directory: packages/sdk-python
       - run: python -m build
         working-directory: packages/sdk-python
       - run: python -m twine check dist/*
         working-directory: packages/sdk-python
-      - run: python -m twine upload dist/*
+      - run: python -m twine upload --skip-existing --verbose -u __token__ -p "$PYPI_API_TOKEN" dist/*
         working-directory: packages/sdk-python
         env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+          PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
       - run: |
+          if git ls-remote --exit-code --tags origin refs/tags/sdk-python/v${{ inputs.version }} >/dev/null 2>&1; then
+            echo "Tag sdk-python/v${{ inputs.version }} already exists, skipping"
+            exit 0
+          fi
           git tag sdk-python/v${{ inputs.version }}
           git push origin sdk-python/v${{ inputs.version }}
 
@@ -81,5 +111,9 @@ jobs:
       - run: go test ./...
         working-directory: packages/sdk-go
       - run: |
+          if git ls-remote --exit-code --tags origin refs/tags/packages/sdk-go/v${{ inputs.version }} >/dev/null 2>&1; then
+            echo "Tag packages/sdk-go/v${{ inputs.version }} already exists, skipping"
+            exit 0
+          fi
           git tag packages/sdk-go/v${{ inputs.version }}
           git push origin packages/sdk-go/v${{ inputs.version }}

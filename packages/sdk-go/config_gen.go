@@ -5,7 +5,7 @@ package whyops
 
 import "time"
 
-const SDKVersion = "0.1.0"
+const SDKVersion = "0.1.1"
 
 // Default service URLs — used when proxyBaseURL / analyseBaseURL are not set in Config.
 const (

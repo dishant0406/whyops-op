@@ -4,7 +4,7 @@
 
 from typing import Literal
 
-SDK_VERSION = "0.1.0"
+SDK_VERSION = "0.1.1"
 
 DEFAULT_PROXY_URL = "https://proxy.whyops.com"
 DEFAULT_ANALYSE_URL = "https://a.whyops.com/api"

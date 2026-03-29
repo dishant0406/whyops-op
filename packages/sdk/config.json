@@ -1,6 +1,6 @@
 {
   "_comment": "Master SDK config — source of truth. Run `npm run sync:sdk-config` to propagate changes to all SDK packages.",
-  "version": "0.1.0",
+  "version": "0.1.1",
 
   "defaults": {
     "proxyUrl": "https://proxy.whyops.com",
