@@ -36,21 +36,40 @@ jobs:
         working-directory: packages/sdk-typescript
       - run: npm run build
         working-directory: packages/sdk-typescript
+      - name: Debug npm token fingerprint
+        working-directory: packages/sdk-typescript
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          python - <<'PY'
+          import hashlib, os
+          raw = os.environ["NPM_TOKEN"]
+          clean = raw.replace("\r", "").replace("\n", "")
+          print(f"NPM_TOKEN_LEN={len(raw)}")
+          print(f"NPM_TOKEN_SHA256={hashlib.sha256(raw.encode()).hexdigest()}")
+          print(f"NPM_TOKEN_CLEAN_LEN={len(clean)}")
+          print(f"NPM_TOKEN_CLEAN_SHA256={hashlib.sha256(clean.encode()).hexdigest()}")
+          PY
       - name: Publish to npm if missing
         working-directory: packages/sdk-typescript
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
+          NPM_TOKEN_CLEAN="$(printf '%s' "$NPM_TOKEN" | tr -d '\r\n')"
           TMP_NPMRC="$(mktemp)"
           trap 'rm -f "$TMP_NPMRC"' EXIT
-          printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN" > "$TMP_NPMRC"
+          cat > "$TMP_NPMRC" <<EOF
+          //registry.npmjs.org/:_authToken=${NPM_TOKEN_CLEAN}
+          registry=https://registry.npmjs.org/
+          always-auth=true
+          EOF
           export NPM_CONFIG_USERCONFIG="$TMP_NPMRC"
-          npm whoami
+          npm whoami --registry=https://registry.npmjs.org/
           if npm view "@whyops/sdk@${{ inputs.version }}" version >/dev/null 2>&1; then
             echo "@whyops/sdk@${{ inputs.version }} already exists, skipping publish"
             exit 0
           fi
-          npm publish --access public
+          npm publish --access public --registry=https://registry.npmjs.org/
       - run: |
           if git ls-remote --exit-code --tags origin refs/tags/sdk-typescript/v${{ inputs.version }} >/dev/null 2>&1; then
             echo "Tag sdk-typescript/v${{ inputs.version }} already exists, skipping"
@@ -84,7 +103,26 @@ jobs:
         working-directory: packages/sdk-python
       - run: python -m twine check dist/*
         working-directory: packages/sdk-python
-      - run: python -m twine upload --skip-existing --verbose -u __token__ -p "$PYPI_API_TOKEN" dist/*
+      - name: Debug PyPI token fingerprint
+        working-directory: packages/sdk-python
+        env:
+          PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          python - <<'PY'
+          import hashlib, os
+          raw = os.environ["PYPI_API_TOKEN"]
+          clean = raw.replace("\r", "").replace("\n", "")
+          print(f"PYPI_TOKEN_LEN={len(raw)}")
+          print(f"PYPI_TOKEN_SHA256={hashlib.sha256(raw.encode()).hexdigest()}")
+          print(f"PYPI_TOKEN_CLEAN_LEN={len(clean)}")
+          print(f"PYPI_TOKEN_CLEAN_SHA256={hashlib.sha256(clean.encode()).hexdigest()}")
+          PY
+      - run: |
+          PYPI_TOKEN_CLEAN="$(printf '%s' "$PYPI_API_TOKEN" | tr -d '\r\n')"
+          export TWINE_USERNAME=__token__
+          export TWINE_PASSWORD="$PYPI_TOKEN_CLEAN"
+          export TWINE_NON_INTERACTIVE=1
+          python -m twine upload --skip-existing --verbose dist/*
         working-directory: packages/sdk-python
         env:
           PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
