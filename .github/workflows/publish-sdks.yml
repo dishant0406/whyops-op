@@ -36,20 +36,6 @@ jobs:
         working-directory: packages/sdk-typescript
       - run: npm run build
         working-directory: packages/sdk-typescript
-      - name: Debug npm token fingerprint
-        working-directory: packages/sdk-typescript
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          python - <<'PY'
-          import hashlib, os
-          raw = os.environ["NPM_TOKEN"]
-          clean = raw.replace("\r", "").replace("\n", "")
-          print(f"NPM_TOKEN_LEN={len(raw)}")
-          print(f"NPM_TOKEN_SHA256={hashlib.sha256(raw.encode()).hexdigest()}")
-          print(f"NPM_TOKEN_CLEAN_LEN={len(clean)}")
-          print(f"NPM_TOKEN_CLEAN_SHA256={hashlib.sha256(clean.encode()).hexdigest()}")
-          PY
       - name: Publish to npm if missing
         working-directory: packages/sdk-typescript
         env:
@@ -103,20 +89,6 @@ jobs:
         working-directory: packages/sdk-python
       - run: python -m twine check dist/*
         working-directory: packages/sdk-python
-      - name: Debug PyPI token fingerprint
-        working-directory: packages/sdk-python
-        env:
-          PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-        run: |
-          python - <<'PY'
-          import hashlib, os
-          raw = os.environ["PYPI_API_TOKEN"]
-          clean = raw.replace("\r", "").replace("\n", "")
-          print(f"PYPI_TOKEN_LEN={len(raw)}")
-          print(f"PYPI_TOKEN_SHA256={hashlib.sha256(raw.encode()).hexdigest()}")
-          print(f"PYPI_TOKEN_CLEAN_LEN={len(clean)}")
-          print(f"PYPI_TOKEN_CLEAN_SHA256={hashlib.sha256(clean.encode()).hexdigest()}")
-          PY
       - run: |
           PYPI_TOKEN_CLEAN="$(printf '%s' "$PYPI_API_TOKEN" | tr -d '\r\n')"
           export TWINE_USERNAME=__token__
