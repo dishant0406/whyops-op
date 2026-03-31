@@ -28,8 +28,13 @@ jobs:
           script: |
             set -e
 
-            # Pull latest code
+            # Stash any local drift from previous hotfixes or install side effects so pulls don't fail.
             cd /app
+            if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
+              git stash push --include-untracked -m "pre-deploy $(date -u +%Y%m%dT%H%M%SZ)" || true
+            fi
+
+            # Pull latest code
             git pull https://${{ secrets.GH_PAT }}@github.com/whyops-org/whyops-op.git main
 
             # Write env file
@@ -38,7 +43,7 @@ jobs:
             ENVEOF
 
             # Install all workspace deps (frontend tar warnings are non-fatal)
-            npm install --install-strategy=nested
+            npm ci --install-strategy=nested
             # Build backend only
             npm run build:shared
             npm run build:proxy
