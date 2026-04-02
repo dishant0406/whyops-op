@@ -24,6 +24,43 @@ export class LlmCostService {
     return error?.name === 'SequelizeDatabaseError' && error?.original?.code === '42P01';
   }
 
+  private async findBestDbMatch(normalizedName: string, alphanumericQuery: string) {
+    const exact = await LlmCost.findOne({
+      where: sequelize.where(sequelize.fn('lower', sequelize.col('model')), normalizedName),
+    });
+    if (exact) return exact;
+
+    const exactAlphanumeric = await LlmCost.findOne({
+      where: sequelize.where(
+        sequelize.fn('regexp_replace', sequelize.fn('lower', sequelize.col('model')), '[^a-z0-9]', '', 'g'),
+        alphanumericQuery,
+      ),
+    });
+    if (exactAlphanumeric) return exactAlphanumeric;
+
+    return LlmCost.findOne({
+      where: {
+        [Op.or]: [
+          {
+            model: {
+              [Op.iLike]: `${normalizedName}%`,
+            },
+          },
+          {
+            model: {
+              [Op.iLike]: `%${normalizedName}%`,
+            },
+          },
+          sequelize.where(
+            sequelize.fn('regexp_replace', sequelize.fn('lower', sequelize.col('model')), '[^a-z0-9]', '', 'g'),
+            { [Op.like]: `%${alphanumericQuery}%` }
+          ),
+        ],
+      },
+      order: [[sequelize.fn('LENGTH', sequelize.col('model')), 'ASC']],
+    });
+  }
+
   /**
    * Get cost for a single model or multiple models.
    * If not found or expired (TTL 2 months), fetches from Linkup API.
@@ -52,23 +89,7 @@ export class LlmCostService {
 
     let cost: LlmCost | null = null;
     try {
-      cost = await LlmCost.findOne({
-        where: {
-          [Op.or]: [
-            { model: normalizedName },
-            {
-              model: {
-                [Op.iLike]: `%${normalizedName}%`,
-              },
-            },
-            sequelize.where(
-              sequelize.fn('regexp_replace', sequelize.fn('lower', sequelize.col('model')), '[^a-z0-9]', '', 'g'),
-              { [Op.like]: `%${alphanumericQuery}%` }
-            ),
-          ],
-        },
-        order: [[sequelize.fn('LENGTH', sequelize.col('model')), 'DESC']],
-      });
+      cost = await this.findBestDbMatch(normalizedName, alphanumericQuery);
     } catch (error: any) {
       if (this.isMissingRelationError(error)) {
         logger.warn({ modelName }, 'llm_costs table does not exist; skipping cost lookup');

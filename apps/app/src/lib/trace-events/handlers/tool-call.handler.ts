@@ -3,7 +3,9 @@ import type { TraceEvent } from "@/stores/traceDetailStore";
 
 interface ToolCallContent {
   name?: string;
+  tool?: string;
   arguments?: string | Record<string, unknown>;
+  input?: unknown;
   id?: string;
 }
 
@@ -25,7 +27,7 @@ function extractToolInfo(
   }
 
   const typedContent = content as ToolCallContent;
-  const name = typedContent.name || metadataTool || "Unknown Tool";
+  const name = typedContent.name || typedContent.tool || metadataTool || "Unknown Tool";
 
   let args = "";
   if (typedContent.arguments) {
@@ -37,6 +39,12 @@ function extractToolInfo(
       } catch {
         args = String(typedContent.arguments);
       }
+    }
+  } else if (typedContent.input !== undefined) {
+    try {
+      args = JSON.stringify(typedContent.input, null, 2);
+    } catch {
+      args = String(typedContent.input);
     }
   } else {
     try {

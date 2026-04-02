@@ -3,14 +3,30 @@ import fs from 'fs';
 import path from 'path';
 import { z } from 'zod';
 
-// Try to load .env from current directory or parent directory (monorepo root)
-const envPath = path.resolve(process.cwd(), '.env');
-const parentEnvPath = path.resolve(process.cwd(), '../.env');
+// Load env files in priority order (lowest → highest):
+//   .env  (base config, checked in)
+//   .env.local  (local overrides, gitignored — used by local:dev:all)
+//
+// Checked in cwd first, then parent dir (monorepo root), so this works
+// whether a service is run from its own directory or from the repo root.
 
+const envPath       = path.resolve(process.cwd(), '.env');
+const parentEnvPath = path.resolve(process.cwd(), '../.env');
+const localEnvPath       = path.resolve(process.cwd(), '.env.local');
+const parentLocalEnvPath = path.resolve(process.cwd(), '../.env.local');
+
+// 1. Base .env (no override — vars already in process.env take precedence)
 if (fs.existsSync(envPath)) {
   dotenv.config({ path: envPath });
 } else if (fs.existsSync(parentEnvPath)) {
   dotenv.config({ path: parentEnvPath });
+}
+
+// 2. .env.local (override: true — wins over .env and shell env)
+if (fs.existsSync(localEnvPath)) {
+  dotenv.config({ path: localEnvPath, override: true });
+} else if (fs.existsSync(parentLocalEnvPath)) {
+  dotenv.config({ path: parentLocalEnvPath, override: true });
 }
 
 const envBoolean = z.preprocess((value) => {

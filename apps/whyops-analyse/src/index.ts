@@ -2,7 +2,7 @@ import { serve } from '@hono/node-server';
 import { getIntegrationCorsOptions } from '@whyops/shared/cors';
 import { closeDatabase, initDatabase } from '@whyops/shared/database';
 import env from '@whyops/shared/env';
-import { createAuthMiddleware, getAuthContext, requireAuth } from '@whyops/shared/middleware';
+import { createAuthMiddleware, getAuthContext } from '@whyops/shared/middleware';
 import { createServiceLogger } from '@whyops/shared/logger';
 import { closeRedisClient } from '@whyops/shared/services';
 import { Hono } from 'hono';
@@ -19,6 +19,7 @@ import healthRouter from './routes/health';
 import llmCostsRouter from './routes/llmCosts';
 import threadsRouter from './routes/threads';
 import visualizeRouter from './routes/visualize';
+import publicToolsRouter from './routes/public-tools';
 import { startAnalyseEventsWorker, stopAnalyseEventsWorker } from './services/events-queue.service';
 
 const logger = createServiceLogger('analyse');
@@ -60,6 +61,11 @@ app.use('/api/*', async (c, next) => {
 });
 
 app.use('/api/*', async (c, next) => {
+  // Public tool endpoints bypass auth — they handle their own rate limiting
+  if (c.req.path.startsWith('/api/public/')) {
+    await next();
+    return;
+  }
   const auth = getAuthContext(c);
   if (!auth) {
     return c.json({ error: 'Unauthorized: Authentication required' }, 401);
@@ -67,6 +73,7 @@ app.use('/api/*', async (c, next) => {
   await next();
 });
 
+app.route('/api/public', publicToolsRouter);
 app.route('/api/events', eventsRouter);
 app.route('/api/threads', threadsRouter);
 app.route('/api/analyses', analysesRouter);

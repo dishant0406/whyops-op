@@ -9,6 +9,15 @@ interface LlmResponseContent {
 
 const TOOL_CALL_MARKER = "tool_calls";
 
+function stringifyFallback(content: TraceEvent["content"]): string {
+  try {
+    const text = JSON.stringify(content);
+    return text === "{}" ? "" : text;
+  } catch {
+    return "";
+  }
+}
+
 function extractResponseText(content: TraceEvent["content"]): { text: string; preview: string; toolCalls: string } {
   if (!content) {
     return { text: "", preview: "", toolCalls: "" };
@@ -22,8 +31,37 @@ function extractResponseText(content: TraceEvent["content"]): { text: string; pr
     };
   }
 
+  if (Array.isArray(content)) {
+    const text = content
+      .map((item) => {
+        if (!item || typeof item !== "object") return "";
+        if ("content" in item && typeof item.content === "string") return item.content;
+        if ("text" in item && typeof item.text === "string") return item.text;
+        return "";
+      })
+      .filter(Boolean)
+      .join("\n");
+    return {
+      text,
+      preview: text.length > 100 ? text.slice(0, 100) + "..." : text,
+      toolCalls: "",
+    };
+  }
+
   const typedContent = content as LlmResponseContent;
   let text = typedContent.content || "";
+  if (!text && typeof (content as Record<string, unknown>).text === "string") {
+    text = (content as Record<string, unknown>).text as string;
+  }
+  if (!text && typeof (content as Record<string, unknown>).message === "string") {
+    text = (content as Record<string, unknown>).message as string;
+  }
+  if (!text && typeof (content as Record<string, unknown>).response === "string") {
+    text = (content as Record<string, unknown>).response as string;
+  }
+  if (!text) {
+    text = stringifyFallback(content);
+  }
   let toolCallsText = "";
 
   if (typedContent.toolCalls && typedContent.toolCalls.length > 0) {

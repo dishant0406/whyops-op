@@ -18,6 +18,9 @@ export function AuthGate({ children }: PropsWithChildren) {
   useEffect(() => {
     if (!sessionChecked) return;
 
+    // Public tool pages — no auth required
+    if (pathname.startsWith("/tools")) return;
+
     if (pathname === "/") {
       if (!hasSession) return;
 
@@ -41,6 +44,8 @@ export function AuthGate({ children }: PropsWithChildren) {
       router.replace("/onboarding");
     }
   }, [hasSession, pathname, router, sessionChecked, user?.onboardingComplete]);
+
+  if (pathname.startsWith("/tools")) return children;
 
   if (pathname === "/" && (!sessionChecked || hasSession)) {
     return (
