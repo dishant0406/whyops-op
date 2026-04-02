@@ -20,6 +20,7 @@ export class ThreadController {
       const page = Math.max(parseInt(c.req.query('page') || '1', 10) || 1, 1);
       const agentName = c.req.query('agentName')?.trim() || undefined;
       const agentId = c.req.query('agentId')?.trim() || undefined;
+      const externalUserId = c.req.query('externalUserId')?.trim() || undefined;
       const include = parseInclude(c.req.query('include'));
       const startDateParam = c.req.query('startDate');
       const endDateParam = c.req.query('endDate');
@@ -37,6 +38,7 @@ export class ThreadController {
         userId: auth.userId,
         agentName,
         agentId,
+        externalUserId,
         page,
         count,
         includeSystemPrompt: include.has('systemPrompt'),

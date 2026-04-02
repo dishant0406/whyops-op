@@ -976,4 +976,209 @@ app.get('/:id', async (c) => {
     }
 });
 
+// GET /api/entities/:id/user-distribution - Get user distribution data for an agent
+app.get('/:id/user-distribution', async (c) => {
+  try {
+    const auth = c.get('whyopsAuth');
+    if (!auth) {
+      return c.json({ success: false, error: 'Unauthorized: authentication required' }, 401);
+    }
+
+    const id = c.req.param('id');
+    const count = Math.min(Math.max(parseInt(c.req.query('count') || '20', 10) || 20, 1), 100);
+    const page = Math.max(parseInt(c.req.query('page') || '1', 10) || 1, 1);
+    const offset = (page - 1) * count;
+
+    const agent = await Agent.findOne({
+      where: {
+        id,
+        userId: auth.userId,
+      },
+      attributes: ['id', 'name'],
+    });
+
+    if (!agent) {
+      return c.json({ success: false, error: 'Agent not found' }, 404);
+    }
+
+    const versions = await Entity.findAll({
+      where: { agentId: agent.id },
+      attributes: ['id'],
+    });
+
+    const entityIds = versions.map((v) => v.id);
+
+    if (entityIds.length === 0) {
+      return c.json({
+        success: true,
+        users: [],
+        totals: {
+          totalTraces: 0,
+          totalCost: 0,
+          totalTokens: 0,
+          totalErrors: 0,
+          uniqueUsers: 0,
+        },
+        pagination: {
+          total: 0,
+          count,
+          page,
+          totalPages: 0,
+          hasMore: false,
+        },
+      });
+    }
+
+    interface UserDistributionRow {
+      externalUserId: string;
+      traceCount: string | number;
+      totalTokens: string | number | null;
+      totalCost: string | number | null;
+      errorCount: string | number;
+      lastActiveAt: string | Date | null;
+    }
+
+    const countRows = await Entity.sequelize!.query<{ total: string | number }>(
+      `
+        WITH user_stats AS (
+          SELECT
+            t.external_user_id AS "externalUserId"
+          FROM traces t
+          WHERE t.entity_id IN (:entityIds)
+            AND t.external_user_id IS NOT NULL
+            AND t.external_user_id != ''
+          GROUP BY t.external_user_id
+        )
+        SELECT COUNT(*) AS total FROM user_stats
+      `,
+      {
+        replacements: { entityIds },
+        type: QueryTypes.SELECT,
+      }
+    );
+
+    const total = Number(countRows[0]?.total || 0);
+
+    const rows = await Entity.sequelize!.query<UserDistributionRow>(
+      `
+        WITH user_stats AS (
+          SELECT
+            t.external_user_id AS "externalUserId",
+            COUNT(DISTINCT t.id)::bigint AS "traceCount",
+            COALESCE(SUM(
+              COALESCE(
+                NULLIF(e.metadata->'usage'->>'totalTokens', '')::bigint,
+                NULLIF(e.metadata->'usage'->>'total_tokens', '')::bigint,
+                0
+              )
+            ), 0)::bigint AS "totalTokens",
+            COALESCE(SUM(
+              COALESCE(
+                NULLIF(e.metadata->>'cost', '')::numeric,
+                0
+              )
+            ), 0)::numeric AS "totalCost",
+            COALESCE(SUM(CASE WHEN e.event_type = 'error' THEN 1 ELSE 0 END), 0)::bigint AS "errorCount",
+            MAX(t.created_at) AS "lastActiveAt"
+          FROM traces t
+          LEFT JOIN trace_events e ON e.trace_id = t.id
+          WHERE t.entity_id IN (:entityIds)
+            AND t.external_user_id IS NOT NULL
+            AND t.external_user_id != ''
+          GROUP BY t.external_user_id
+        )
+        SELECT
+          "externalUserId",
+          "traceCount",
+          "totalTokens",
+          "totalCost",
+          "errorCount",
+          "lastActiveAt"
+        FROM user_stats
+        ORDER BY "traceCount" DESC
+        LIMIT :limit OFFSET :offset
+      `,
+      {
+        replacements: { entityIds, limit: count, offset },
+        type: QueryTypes.SELECT,
+      }
+    );
+
+    const users = rows.map((row) => ({
+      externalUserId: row.externalUserId,
+      traceCount: Number(row.traceCount || 0),
+      totalTokens: Number(row.totalTokens || 0),
+      totalCost: Number(row.totalCost || 0),
+      errorCount: Number(row.errorCount || 0),
+      lastActiveAt: row.lastActiveAt ? new Date(row.lastActiveAt).toISOString() : null,
+    }));
+
+    const totals = {
+      totalTraces: 0,
+      totalCost: 0,
+      totalTokens: 0,
+      totalErrors: 0,
+      uniqueUsers: total,
+    };
+
+    const totalsRows = await Entity.sequelize!.query<{
+      totalTraces: string | number;
+      totalCost: string | number;
+      totalTokens: string | number;
+      totalErrors: string | number;
+    }>(
+      `
+        SELECT
+          COUNT(DISTINCT t.id)::bigint AS "totalTraces",
+          COALESCE(SUM(
+            COALESCE(
+              NULLIF(e.metadata->'usage'->>'totalTokens', '')::bigint,
+              NULLIF(e.metadata->'usage'->>'total_tokens', '')::bigint,
+              0
+            )
+          ), 0)::bigint AS "totalTokens",
+          COALESCE(SUM(
+            COALESCE(
+              NULLIF(e.metadata->>'cost', '')::numeric,
+              0
+            )
+          ), 0)::numeric AS "totalCost",
+          COALESCE(SUM(CASE WHEN e.event_type = 'error' THEN 1 ELSE 0 END), 0)::bigint AS "totalErrors"
+        FROM traces t
+        LEFT JOIN trace_events e ON e.trace_id = t.id
+        WHERE t.entity_id IN (:entityIds)
+          AND t.external_user_id IS NOT NULL
+          AND t.external_user_id != ''
+      `,
+      {
+        replacements: { entityIds },
+        type: QueryTypes.SELECT,
+      }
+    );
+
+    if (totalsRows[0]) {
+      totals.totalTraces = Number(totalsRows[0].totalTraces || 0);
+      totals.totalTokens = Number(totalsRows[0].totalTokens || 0);
+      totals.totalCost = Number(totalsRows[0].totalCost || 0);
+      totals.totalErrors = Number(totalsRows[0].totalErrors || 0);
+    }
+
+    return c.json({
+      success: true,
+      users,
+      totals,
+      pagination: {
+        total,
+        count,
+        page,
+        totalPages: Math.ceil(total / count),
+        hasMore: page * count < total,
+      },
+    });
+  } catch (e) {
+    logger.error({ error: e }, 'Failed to get user distribution');
+    return c.json({ success: false, error: 'Failed to get user distribution' }, 500);
+  }
+});
+
 export default app;

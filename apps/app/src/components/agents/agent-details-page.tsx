@@ -11,6 +11,7 @@ import { AgentVersionConfigTab } from "@/components/agents/agent-version-config-
 import { AgentAnalysisTab } from "@/components/agents/analysis/AgentAnalysisTab";
 import { AgentEvalsTab } from "@/components/agents/evals/AgentEvalsTab";
 import { RecentTracesTable } from "@/components/agents/recent-traces-table";
+import { UserDistributionTable } from "@/components/agents/user-distribution-table";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DEFAULT_TIMELINE_PERIOD } from "@/constants/agent-timelines";
@@ -126,6 +127,7 @@ export function AgentDetailsPage() {
             </div>
           </div>
           <RecentTracesTable agentId={agentId} />
+          <UserDistributionTable agentId={agentId} />
         </TabsContent>
 
         <TabsContent value="configuration">

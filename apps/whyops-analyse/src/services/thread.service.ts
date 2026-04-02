@@ -40,6 +40,7 @@ const latencyMsExpr = `
 export interface ThreadListItem {
   threadId: string;
   userId: string;
+  externalUserId?: string;
   providerId?: string;
   agentId?: string;
   entityId?: string;
@@ -58,6 +59,7 @@ export interface ThreadListItem {
 interface ThreadListRow {
   threadId: string;
   userId: string;
+  externalUserId?: string;
   providerId?: string;
   agentId?: string;
   entityId?: string;
@@ -116,6 +118,7 @@ export interface ModelBreakdown {
 export interface ThreadDetail {
   threadId: string;
   userId: string;
+  externalUserId?: string;
   providerId?: string;
   sampledIn?: boolean;
   agentId?: string;
@@ -180,6 +183,7 @@ export class ThreadService {
     userId: string;
     agentName?: string;
     agentId?: string;
+    externalUserId?: string;
     page?: number;
     count?: number;
     includeSystemPrompt?: boolean;
@@ -188,7 +192,7 @@ export class ThreadService {
     startDate?: Date;
     endDate?: Date;
   }): Promise<{ threads: ThreadListItem[]; pagination: { total: number; count: number; page: number; totalPages: number; hasMore: boolean } }> {
-    const { userId, agentName, agentId, page = 1, count = 20, includeSystemPrompt = false, includeTools = false, includeMetadata = false, startDate, endDate } = filters;
+    const { userId, agentName, agentId, externalUserId, page = 1, count = 20, includeSystemPrompt = false, includeTools = false, includeMetadata = false, startDate, endDate } = filters;
     const offset = (page - 1) * count;
 
     try {
@@ -211,6 +215,7 @@ export class ThreadService {
           WHERE t.user_id = :userId
             AND (:agentName IS NULL OR a.name = :agentName)
             AND (:agentId IS NULL OR a.id = :agentId)
+            AND (:externalUserId IS NULL OR t.external_user_id = :externalUserId)
             AND (:startDate IS NULL OR COALESCE(es.last_event_timestamp, t.created_at) >= :startDate)
             AND (:endDate IS NULL OR COALESCE(es.last_event_timestamp, t.created_at) <= :endDate)
         `,
@@ -219,6 +224,7 @@ export class ThreadService {
             userId,
             agentName: agentName || null,
             agentId: agentId || null,
+            externalUserId: externalUserId || null,
             startDate: startDate || null,
             endDate: endDate || null,
           },
@@ -231,6 +237,7 @@ export class ThreadService {
       const selectFields = [
         `t.id AS "threadId"`,
         `t.user_id AS "userId"`,
+        `t.external_user_id AS "externalUserId"`,
         `COALESCE(t.provider_id, le.provider_id) AS "providerId"`,
         `a.id AS "agentId"`,
         `t.entity_id AS "entityId"`,
@@ -304,6 +311,7 @@ export class ThreadService {
           WHERE t.user_id = :userId
             AND (:agentName IS NULL OR a.name = :agentName)
             AND (:agentId IS NULL OR a.id = :agentId)
+            AND (:externalUserId IS NULL OR t.external_user_id = :externalUserId)
             AND (:startDate IS NULL OR COALESCE(es.last_event_timestamp, t.created_at) >= :startDate)
             AND (:endDate IS NULL OR COALESCE(es.last_event_timestamp, t.created_at) <= :endDate)
           ORDER BY COALESCE(es.last_event_timestamp, t.created_at) DESC
@@ -314,6 +322,7 @@ export class ThreadService {
             userId,
             agentName: agentName || null,
             agentId: agentId || null,
+            externalUserId: externalUserId || null,
             count,
             offset,
             startDate: startDate || null,
@@ -326,6 +335,7 @@ export class ThreadService {
       const threads: ThreadListItem[] = rows.map((row) => ({
         threadId: row.threadId,
         userId: row.userId,
+        externalUserId: row.externalUserId || undefined,
         providerId: row.providerId,
         agentId: row.agentId,
         entityId: row.entityId,
@@ -643,6 +653,7 @@ export class ThreadService {
         return {
           threadId: trace.id,
           userId: trace.userId,
+          externalUserId: trace.externalUserId || undefined,
           providerId: trace.providerId,
           sampledIn: trace.sampledIn,
           agentId: (trace as any).entity?.agentId,
@@ -780,6 +791,7 @@ export class ThreadService {
       return {
         threadId: trace.id,
         userId: trace.userId,
+        externalUserId: trace.externalUserId || undefined,
         providerId: trace.providerId,
         sampledIn: trace.sampledIn,
         agentId: (trace as any).entity?.agentId,

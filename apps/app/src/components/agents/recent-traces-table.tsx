@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -27,7 +28,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ListRestart,
-  Search
+  Search,
+  X
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -40,15 +42,24 @@ interface RecentTracesTableProps {
 
 export function RecentTracesTable({ agentId }: RecentTracesTableProps) {
   const router = useRouter();
-  const { threads, pagination, isLoading, isRefetching, fetchThreads } = useThreadsStore();
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [localIsLoading, setLocalIsLoading] = React.useState(false);
+  const searchParams = useSearchParams();
+  const { threads, pagination, isLoading, isRefetching, fetchThreads, setExternalUserIdFilter } = useThreadsStore();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [localIsLoading, setLocalIsLoading] = useState(false);
+
+  const externalUserIdFilter = searchParams.get("externalUserId");
 
   useEffect(() => {
-    fetchThreads(agentId, 1, pagination.count);
-  }, [agentId, pagination.count, fetchThreads]);
+    if (externalUserIdFilter) {
+      setExternalUserIdFilter(externalUserIdFilter);
+    } else {
+      setExternalUserIdFilter(null);
+    }
+    void fetchThreads(agentId, 1, pagination.count);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentId, externalUserIdFilter]);
 
-  // Filter threads by search query
+  // Filter threads by search query (client-side for trace ID search)
   const filteredThreads = threads.filter((thread) =>
     thread.threadId.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -63,12 +74,34 @@ export function RecentTracesTable({ agentId }: RecentTracesTableProps) {
     fetchThreads(agentId, 1, count).finally(() => setLocalIsLoading(false));
   };
 
+  const clearExternalUserIdFilter = () => {
+    setExternalUserIdFilter(null);
+    setSearchQuery("");
+    router.push(`/agents/${agentId}/traces`);
+  };
+
   const currentLoading = isLoading || localIsLoading;
 
   return (
     <Card className="border-border/30 bg-card">
       <div className="flex items-center justify-between border-b border-border/30 px-6 py-4">
-        <h2 className="text-lg font-semibold text-foreground">Recent Traces</h2>
+        <div className="flex items-center gap-4">
+          <h2 className="text-lg font-semibold text-foreground">Recent Traces</h2>
+          {externalUserIdFilter && (
+            <div className="flex items-center gap-2 rounded-sm border border-border/60 bg-surface-2/30 px-3 py-1">
+              <span className="text-xs text-muted-foreground">User:</span>
+              <span className="max-w-32 truncate font-mono text-xs text-foreground">
+                {externalUserIdFilter}
+              </span>
+              <button
+                onClick={clearExternalUserIdFilter}
+                className="ml-1 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -107,11 +140,13 @@ export function RecentTracesTable({ agentId }: RecentTracesTableProps) {
           description={
             searchQuery
               ? `No traces matching "${searchQuery}"`
+              : externalUserIdFilter
+              ? `No traces found for user "${externalUserIdFilter}"`
               : "This agent hasn't generated any traces yet. Run a test to see activity."
           }
           icon={ListRestart}
           action={
-            !searchQuery && (
+            !searchQuery && !externalUserIdFilter && (
               <Button variant="outline" size="sm">
                 Run Test Trace
               </Button>
@@ -124,6 +159,7 @@ export function RecentTracesTable({ agentId }: RecentTracesTableProps) {
             <TableHeader>
               <TableRow className="bg-surface-2/50 hover:bg-surface-2/50">
                 <TableHead className="px-6 py-3">Status</TableHead>
+                {externalUserIdFilter && <TableHead className="px-6 py-3">External User</TableHead>}
                 <TableHead className="px-6 py-3">Trace ID</TableHead>
                 <TableHead className="px-6 py-3">Timestamp</TableHead>
                 <TableHead className="px-6 py-3">Duration</TableHead>
@@ -146,6 +182,11 @@ export function RecentTracesTable({ agentId }: RecentTracesTableProps) {
                       </span>
                     </div>
                   </TableCell>
+                  {externalUserIdFilter && (
+                    <TableCell className="px-6 py-4 font-mono text-xs text-muted-foreground">
+                      {thread.externalUserId || "—"}
+                    </TableCell>
+                  )}
                   <TableCell className="px-6 py-4 font-mono text-sm text-primary">
                     {thread.threadId.substring(0, 16)}...
                   </TableCell>

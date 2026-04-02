@@ -331,6 +331,8 @@ class WhyOpsTrace:
             payload["timestamp"] = opts["timestamp"]
         if opts.get("idempotency_key"):
             payload["idempotencyKey"] = opts["idempotency_key"]
+        if opts.get("external_user_id"):
+            payload["externalUserId"] = opts["external_user_id"]
         return payload
 
     def _send_sync(self, payload: EventPayload) -> None:

@@ -25,6 +25,7 @@ export interface TraceEventPayload {
   spanId?: string;
   stepId?: number;
   parentStepId?: number;
+  externalUserId?: string;
   providerId?: string;
   agentName?: string;
   entityName?: string;

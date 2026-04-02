@@ -44,6 +44,7 @@ async function trackAnthropicStream(
   apiKey: string,
   traceId: string,
   spanId: string,
+  externalUserId: string | undefined,
   providerId: string | undefined,
   agentName: string,
   model: string,
@@ -90,6 +91,7 @@ async function trackAnthropicStream(
       eventType: 'llm_response',
       traceId,
       spanId,
+      externalUserId,
       providerId,
       agentName,
       content: {
@@ -119,6 +121,7 @@ async function trackAnthropicStream(
           eventType: 'llm_thinking',
           traceId,
           spanId: generateSpanId(),
+          externalUserId,
           providerId,
           agentName,
           content: block,
@@ -142,6 +145,7 @@ app.post('/messages', async (c) => {
 
   const startTime = Date.now();
   const agentName = c.req.header('X-Agent-Name');
+  const externalUserId = c.req.header('X-External-User-Id') || undefined;
 
   if (!agentName) {
     return c.json({ error: 'Missing required header: X-Agent-Name' }, 400);
@@ -187,6 +191,7 @@ app.post('/messages', async (c) => {
       eventType: determineAnthropicRequestEventType(requestBody.messages),
       traceId,
       spanId,
+      externalUserId,
       providerId: provider?.id,
       agentName,
       content: requestBody.messages,
@@ -221,6 +226,7 @@ app.post('/messages', async (c) => {
           eventType: 'error',
           traceId,
           spanId: generateSpanId(),
+          externalUserId,
           providerId: provider?.id,
           agentName,
           content: { error: errorBody, status: response.status },
@@ -244,6 +250,7 @@ app.post('/messages', async (c) => {
         auth.apiKey,
         traceId,
         spanId,
+        externalUserId,
         provider?.id,
         agentName,
         requestBody.model,
@@ -278,6 +285,7 @@ app.post('/messages', async (c) => {
           eventType: 'error',
           traceId,
           spanId: generateSpanId(),
+          externalUserId,
           providerId: provider?.id,
           agentName,
           content: responseData,
@@ -297,6 +305,7 @@ app.post('/messages', async (c) => {
         eventType: 'llm_response',
         traceId,
         spanId,
+        externalUserId,
         providerId: provider?.id,
         agentName,
         content: {
@@ -322,6 +331,7 @@ app.post('/messages', async (c) => {
             eventType: 'llm_thinking',
             traceId,
             spanId: generateSpanId(),
+            externalUserId,
             providerId: provider?.id,
             agentName,
             content: block,
@@ -346,6 +356,7 @@ app.post('/messages', async (c) => {
       eventType: 'error',
       traceId,
       spanId: generateSpanId(),
+      externalUserId,
       providerId: provider?.id,
       agentName,
       content: { message: error.message },

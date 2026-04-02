@@ -26,6 +26,7 @@ export interface EventData {
   stepId?: number;
   parentStepId?: number;
   userId: string;
+  externalUserId?: string;
   projectId: string;
   environmentId: string;
   providerId?: string;
@@ -129,6 +130,7 @@ export class EventService {
       await TraceService.ensureTraceExists({
         traceId: data.traceId,
         userId: data.userId,
+        externalUserId: data.externalUserId,
         projectId: data.projectId,
         environmentId: data.environmentId,
         providerId: data.providerId,
@@ -232,6 +234,7 @@ export class EventService {
         const result = await this.createToolCallEvents({
           traceId: data.traceId,
           userId: data.userId,
+          externalUserId: data.externalUserId,
           providerId: data.providerId,
           currentStepId: stepId,
           parentStepId,
@@ -266,6 +269,7 @@ export class EventService {
         content: data.content,
         metadata: finalMetadata,
         userId: data.userId,
+        externalUserId: data.externalUserId,
         providerId: data.providerId,
       });
 
@@ -378,6 +382,7 @@ export class EventService {
   private static async createToolCallEvents(data: {
     traceId: string;
     userId: string;
+    externalUserId?: string;
     providerId?: string;
     currentStepId: number;
     parentStepId?: number;
@@ -430,6 +435,7 @@ export class EventService {
         idempotencyKey: `${baseIdempotencyKey}_request`,
       },
       userId: data.userId,
+      externalUserId: data.externalUserId,
       providerId: data.providerId,
     });
 
@@ -466,6 +472,7 @@ export class EventService {
         idempotencyKey: `${baseIdempotencyKey}_response`,
       },
       userId: data.userId,
+      externalUserId: data.externalUserId,
       providerId: data.providerId,
     });
 

@@ -4,6 +4,7 @@ import sequelize from '../database';
 export interface TraceAttributes {
   id: string; // traceId
   userId: string;
+  externalUserId?: string;
   providerId?: string;
   entityId?: string;
   sampledIn?: boolean;
@@ -18,6 +19,7 @@ export interface TraceAttributes {
 export class Trace extends Model<TraceAttributes> implements TraceAttributes {
   declare id: string;
   declare userId: string;
+  declare externalUserId?: string;
   declare providerId?: string;
   declare entityId?: string;
   declare sampledIn?: boolean;
@@ -40,6 +42,11 @@ Trace.init(
       type: DataTypes.STRING,
       allowNull: false,
       field: 'user_id',
+    },
+    externalUserId: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      field: 'external_user_id',
     },
     providerId: {
       type: DataTypes.UUID,

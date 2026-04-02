@@ -8,6 +8,7 @@ const logger = createServiceLogger('analyse:trace-service');
 export interface TraceCreationData {
   traceId: string;
   userId: string;
+  externalUserId?: string;
   projectId: string;
   environmentId: string;
   providerId?: string;
@@ -84,6 +85,10 @@ export class TraceService {
         }
       }
 
+      if (!trace.externalUserId && data.externalUserId) {
+        trace.externalUserId = data.externalUserId;
+      }
+
       const fallbackMetadata = this.extractBestEffortMetadata(data.content, data.metadata);
 
       if (!trace.model && fallbackMetadata.model) {
@@ -129,6 +134,7 @@ export class TraceService {
       defaults: {
         id: data.traceId,
         userId: data.userId,
+        externalUserId: data.externalUserId,
         providerId: data.providerId,
         entityId: resolvedAgentVersion.agentVersionId,
         sampledIn: data.sampledIn ?? true,

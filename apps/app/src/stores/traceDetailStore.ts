@@ -78,6 +78,7 @@ export interface TraceModelBreakdown {
 export interface TraceDetail {
   threadId: string;
   userId: string;
+  externalUserId?: string;
   providerId?: string;
   agentId?: string;
   entityId?: string;

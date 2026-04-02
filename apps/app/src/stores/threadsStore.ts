@@ -7,6 +7,7 @@ import { useConfigStore } from "./configStore";
 export interface Thread {
   threadId: string;
   userId: string;
+  externalUserId?: string | null;
   providerId?: string | null;
   agentId?: string | null;
   entityId?: string | null;
@@ -37,8 +38,10 @@ interface ThreadsState {
   isRefetching: boolean;
   error: string | null;
   apiKey: string | null;
+  externalUserIdFilter: string | null;
 
   setApiKey: (key: string) => void;
+  setExternalUserIdFilter: (externalUserId: string | null) => void;
   fetchThreads: (agentId?: string, page?: number, count?: number, isRefetch?: boolean) => Promise<void>;
 }
 
@@ -57,12 +60,14 @@ export const useThreadsStore = create<ThreadsState>()(
       isRefetching: false,
       error: null,
       apiKey: null,
+      externalUserIdFilter: null,
 
       setApiKey: (key: string) => set({ apiKey: key }),
+      setExternalUserIdFilter: (externalUserId: string | null) => set({ externalUserIdFilter: externalUserId }),
 
       fetchThreads: async (agentId?: string, page = 1, count = 20, isRefetch = false) => {
         const config = useConfigStore.getState().config;
-        const { apiKey } = get();
+        const { apiKey, externalUserIdFilter } = get();
 
         if (!config?.analyseBaseUrl) {
           set({ error: "Analyse base URL not configured" });
@@ -80,6 +85,9 @@ export const useThreadsStore = create<ThreadsState>()(
           if (agentId) {
             params.agentId = agentId;
           }
+          if (externalUserIdFilter) {
+            params.externalUserId = externalUserIdFilter;
+          }
 
           const response = await apiClient.get<{ threads: Thread[]; pagination: Pagination }>(
             `${config.analyseBaseUrl}/threads`,
@@ -92,6 +100,7 @@ export const useThreadsStore = create<ThreadsState>()(
           const threads: Thread[] = (response.data.threads || []).map((t) => ({
             threadId: t.threadId,
             userId: t.userId,
+            externalUserId: t.externalUserId,
             providerId: t.providerId,
             agentId: t.agentId,
             entityId: t.entityId,

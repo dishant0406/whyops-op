@@ -151,6 +151,7 @@ class EventOptions(TypedDict, total=False):
     parent_step_id: int
     timestamp: str       # ISO 8601
     idempotency_key: str
+    external_user_id: str  # Your application's user ID (not the WhyOps internal user ID)
 
 
 # ─── Internal event payload (sent to API) ─────────────────────────────────────
@@ -166,3 +167,4 @@ class EventPayload(TypedDict, total=False):
     content: Any
     metadata: dict[str, Any]
     idempotencyKey: str
+    externalUserId: str

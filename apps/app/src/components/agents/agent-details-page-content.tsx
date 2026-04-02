@@ -7,6 +7,7 @@ import { AgentDetailStats } from "@/components/agents/agent-detail-stats";
 import { AgentTraceCountTimeline } from "@/components/agents/agent-trace-count-timeline";
 import { AgentTraceTimeline } from "@/components/agents/agent-trace-timeline";
 import { RecentTracesTable } from "@/components/agents/recent-traces-table";
+import { UserDistributionTable } from "@/components/agents/user-distribution-table";
 import { Spinner } from "@/components/ui/spinner";
 import { DEFAULT_TIMELINE_PERIOD } from "@/constants/agent-timelines";
 import { useAgentsStore } from "@/stores/agentsStore";
@@ -106,6 +107,7 @@ export function AgentDetailsPageContent({ agentId }: AgentDetailsPageContentProp
         </div>
       </div>
       <RecentTracesTable agentId={agentId} />
+      <UserDistributionTable agentId={agentId} />
     </div>
   );
 }

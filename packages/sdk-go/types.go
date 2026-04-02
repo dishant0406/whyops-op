@@ -73,6 +73,7 @@ type EventOptions struct {
 	ParentStepID   int
 	Timestamp      string // ISO 8601
 	IdempotencyKey string
+	ExternalUserID string // Your application's user ID (not the WhyOps internal user ID)
 }
 
 // UserMessageOptions holds optional metadata for a user_message event.
@@ -133,15 +134,16 @@ type eventPayload struct {
 	Content        any            `json:"content,omitempty"`
 	Metadata       map[string]any `json:"metadata,omitempty"`
 	IdempotencyKey string         `json:"idempotencyKey,omitempty"`
+	ExternalUserID string         `json:"externalUserId,omitempty"`
 }
 
 // ─── Client config ────────────────────────────────────────────────────────────
 
 // Config holds the configuration for the WhyOps client.
 type Config struct {
-	APIKey          string
-	AgentName       string
-	AgentMetadata   AgentMetadata
-	ProxyBaseURL    string // default: from shared SDK config
-	AnalyseBaseURL  string // default: from shared SDK config
+	APIKey         string
+	AgentName      string
+	AgentMetadata  AgentMetadata
+	ProxyBaseURL   string // default: from shared SDK config
+	AnalyseBaseURL string // default: from shared SDK config
 }

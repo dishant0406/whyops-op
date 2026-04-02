@@ -134,6 +134,12 @@ export interface EventBase {
   timestamp?: string;
   /** For retry safety. */
   idempotencyKey?: string;
+  /**
+   * Optional external user ID to associate with this event.
+   * This is your application's user ID, not the WhyOps internal user ID.
+   * Use this to link traces to your end-user entities.
+   */
+  externalUserId?: string;
 }
 
 // ─── Per-method option bags ───────────────────────────────────────────────────
@@ -232,4 +238,5 @@ export interface EventPayload {
   content?: unknown;
   metadata?: Record<string, unknown>;
   idempotencyKey?: string;
+  externalUserId?: string;
 }

@@ -482,6 +482,7 @@ app.post('/chat/completions', async (c) => {
 
   const startTime = Date.now();
   const agentName = c.req.header('X-Agent-Name');
+  const externalUserId = c.req.header('X-External-User-Id') || undefined;
 
   if (!agentName) {
     return c.json({ error: 'Missing required header: X-Agent-Name' }, 400);
@@ -566,6 +567,7 @@ app.post('/chat/completions', async (c) => {
     traceId,
     spanId: requestSpanId,
     eventType: determineOpenAIRequestEventType(requestBody.messages),
+    externalUserId,
     providerId: provider.id,
     agentName,
     content: requestBody.messages,
@@ -613,6 +615,7 @@ app.post('/chat/completions', async (c) => {
           traceId,
           spanId: generateSpanId(),
           eventType: 'error',
+          externalUserId,
           providerId: provider.id,
           agentName,
           content: { error: errorBody, status: response.status },
@@ -744,6 +747,7 @@ app.post('/chat/completions', async (c) => {
           traceId,
           spanId: generateSpanId(),
           eventType: 'error',
+          externalUserId,
           providerId: provider.id,
           agentName,
           content: responseData,
@@ -790,6 +794,7 @@ app.post('/chat/completions', async (c) => {
         traceId,
         spanId: generateSpanId(),
         eventType: 'llm_response',
+        externalUserId,
         providerId: provider.id,
         agentName,
         content: {
@@ -817,6 +822,7 @@ app.post('/chat/completions', async (c) => {
       traceId: traceId!,
       spanId: generateSpanId(),
       eventType: 'error',
+      externalUserId,
       providerId: provider.id,
       agentName,
       content: { message: error.message },
@@ -836,6 +842,7 @@ app.post('/responses', async (c) => {
 
   const startTime = Date.now();
   const agentName = c.req.header('X-Agent-Name');
+  const externalUserId = c.req.header('X-External-User-Id') || undefined;
 
   if (!agentName) {
     return c.json({ error: 'Missing required header: X-Agent-Name' }, 400);
@@ -951,6 +958,7 @@ app.post('/responses', async (c) => {
     traceId,
     spanId: requestSpanId,
     eventType: determineResponsesRequestEventType(requestBody.input),
+    externalUserId,
     providerId: provider.id,
     agentName,
     content: requestBody.input || requestBody.conversation, // Log input
@@ -1004,6 +1012,7 @@ app.post('/responses', async (c) => {
           traceId,
           spanId: generateSpanId(),
           eventType: 'error',
+          externalUserId,
           providerId: provider.id,
           agentName,
           content: { error: errorBody, status: response.status },
@@ -1062,6 +1071,7 @@ app.post('/responses', async (c) => {
           traceId,
           spanId: generateSpanId(),
           eventType: 'error',
+          externalUserId,
           providerId: provider.id,
           agentName,
           content: responseData,
@@ -1134,6 +1144,7 @@ app.post('/responses', async (c) => {
         traceId,
         spanId: generateSpanId(),
         eventType: 'llm_response',
+        externalUserId,
         providerId: provider.id,
         agentName,
         content: {
@@ -1158,6 +1169,7 @@ app.post('/responses', async (c) => {
       traceId: traceId!,
       spanId: generateSpanId(),
       eventType: 'error',
+      externalUserId,
       providerId: provider.id,
       agentName,
       content: { message: error.message },
@@ -1174,6 +1186,7 @@ app.post('/embeddings', async (c) => {
 
   const startTime = Date.now();
   const agentName = c.req.header('X-Agent-Name');
+  const externalUserId = c.req.header('X-External-User-Id') || undefined;
 
   if (!agentName) {
     return c.json({ error: 'Missing required header: X-Agent-Name' }, 400);
@@ -1266,10 +1279,11 @@ app.post('/embeddings', async (c) => {
         traceId,
         spanId: generateSpanId(),
         eventType: 'error',
+        externalUserId,
         providerId: provider.id,
         agentName,
-        content: responseData,
-        metadata: { latencyMs },
+        content: { error: rawBody, status: response.status },
+        metadata: { latencyMs }
       });
 
       return responseFromUpstreamError(response.status, response.headers.get('content-type'), rawBody);
@@ -1289,6 +1303,7 @@ app.post('/embeddings', async (c) => {
       traceId,
       spanId: generateSpanId(),
       eventType: 'embedding_response',
+      externalUserId,
       providerId: provider.id,
       agentName,
       content: {
@@ -1313,6 +1328,7 @@ app.post('/embeddings', async (c) => {
       traceId,
       spanId: generateSpanId(),
       eventType: 'error',
+      externalUserId,
       providerId: provider.id,
       agentName,
       content: { message: error.message },

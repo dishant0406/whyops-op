@@ -145,6 +145,7 @@ export function TracesPageContent() {
                   <TableRow className="bg-surface-2/50 hover:bg-surface-2/50">
                     <TableHead className="px-6 py-3">Status</TableHead>
                     <TableHead className="px-6 py-3">Agent</TableHead>
+                    <TableHead className="px-6 py-3">External User</TableHead>
                     <TableHead className="px-6 py-3">Trace ID</TableHead>
                     <TableHead className="px-6 py-3">Timestamp</TableHead>
                     <TableHead className="px-6 py-3">Duration</TableHead>
@@ -169,6 +170,9 @@ export function TracesPageContent() {
                       </TableCell>
                       <TableCell className="px-6 py-4 text-sm text-foreground font-medium">
                         {thread.entityName || "Unknown Agent"}
+                      </TableCell>
+                      <TableCell className="px-6 py-4 font-mono text-xs text-muted-foreground">
+                        {thread.externalUserId || "—"}
                       </TableCell>
                       <TableCell className="px-6 py-4 font-mono text-sm text-primary">
                         {thread.threadId.substring(0, 16)}...

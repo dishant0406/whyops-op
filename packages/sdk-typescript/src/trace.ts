@@ -176,6 +176,7 @@ export class WhyOpsTrace {
     if (opts.parentStepId) payload.parentStepId = opts.parentStepId;
     if (opts.timestamp) payload.timestamp = opts.timestamp;
     if (opts.idempotencyKey) payload.idempotencyKey = opts.idempotencyKey;
+    if (opts.externalUserId) payload.externalUserId = opts.externalUserId;
     if (metadata) payload.metadata = metadata;
     return payload;
   }

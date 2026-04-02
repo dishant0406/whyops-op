@@ -35,6 +35,7 @@ const eventSchema = z.object({
   parentStepId: z.number().int().min(1, "Parent Step ID must be a positive integer").optional(),
   // These are optional - will be extracted from headers/API key if not provided
   userId: z.string().uuid("Invalid User ID format (UUID required)").optional(),
+  externalUserId: z.string().max(255).optional(),
   projectId: z.string().uuid("Invalid Project ID format (UUID required)").optional(),
   environmentId: z.string().uuid("Invalid Environment ID format (UUID required)").optional(),
   providerId: z.string().uuid("Invalid Provider ID format (UUID required)").optional(),
@@ -64,6 +65,7 @@ const toolResultSchema = z.object({
   stepId: z.number().int().min(1, "Step ID must be a positive integer").optional(),
   parentStepId: z.number().int().min(1, "Parent Step ID must be a positive integer").optional(),
   userId: z.string().uuid("Invalid User ID format (UUID required)").optional(),
+  externalUserId: z.string().max(255).optional(),
   projectId: z.string().uuid("Invalid Project ID format (UUID required)").optional(),
   environmentId: z.string().uuid("Invalid Environment ID format (UUID required)").optional(),
   providerId: z.string().uuid("Invalid Provider ID format (UUID required)").optional(),
@@ -88,12 +90,13 @@ const batchToolResultSchema = z.union([toolResultSchema, z.array(toolResultSchem
 function processEventData(
   data: any,
   auth: any,
-  headers: { userId?: string; projectId?: string; environmentId?: string; providerId?: string }
+  headers: { userId?: string; externalUserId?: string; projectId?: string; environmentId?: string; providerId?: string }
 ) {
   const processItem = (item: any) => ({
     ...item,
     agentName: item.agentName || item.entityName,
     userId: item.userId || auth?.userId || headers.userId,
+    externalUserId: item.externalUserId || headers.externalUserId,
     projectId: item.projectId || auth?.projectId || headers.projectId,
     environmentId: item.environmentId || auth?.environmentId || headers.environmentId,
     providerId: item.providerId || auth?.providerId || headers.providerId,
@@ -123,6 +126,7 @@ app.post(
     // Extract auth info from headers or auth middleware
     const headers = {
       userId: c.req.header('X-User-Id'),
+      externalUserId: c.req.header('X-External-User-Id'),
       projectId: c.req.header('X-Project-Id'),
       environmentId: c.req.header('X-Environment-Id'),
       providerId: c.req.header('X-Provider-Id'),
@@ -160,6 +164,7 @@ app.post(
 
     const headers = {
       userId: c.req.header('X-User-Id'),
+      externalUserId: c.req.header('X-External-User-Id'),
       projectId: c.req.header('X-Project-Id'),
       environmentId: c.req.header('X-Environment-Id'),
       providerId: c.req.header('X-Provider-Id'),
@@ -193,6 +198,7 @@ app.post(
     // Extract auth info from headers or auth middleware
     const headers = {
       userId: c.req.header('X-User-Id'),
+      externalUserId: c.req.header('X-External-User-Id'),
       projectId: c.req.header('X-Project-Id'),
       environmentId: c.req.header('X-Environment-Id'),
       providerId: c.req.header('X-Provider-Id'),

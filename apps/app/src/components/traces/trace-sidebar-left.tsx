@@ -484,6 +484,14 @@ export function TraceSidebarLeft({ trace, isCollapsed, onToggle }: TraceSidebarL
       title: trace.threadId,
     },
     {
+      key: "externalUserId",
+      label: "External User",
+      icon: <Hash className="h-3 w-3" />,
+      value: trace.externalUserId || "—",
+      mono: true,
+      title: trace.externalUserId,
+    },
+    {
       key: "started",
       label: "Started",
       icon: <Calendar className="h-3 w-3" />,

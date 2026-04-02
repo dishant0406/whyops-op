@@ -100,10 +100,10 @@ func (t *Trace) EmbeddingRequest(ctx context.Context, inputs []string, opts Even
 func (t *Trace) EmbeddingResponse(ctx context.Context, model, provider string, embeddingCount, firstDimensions int, opts EmbeddingResponseOptions) error {
 	t.onInit(ctx)
 	c := map[string]any{
-		"object":                    "list",
-		"embeddingCount":            embeddingCount,
-		"firstEmbeddingDimensions":  firstDimensions,
-		"encodingFormat":            "float",
+		"object":                   "list",
+		"embeddingCount":           embeddingCount,
+		"firstEmbeddingDimensions": firstDimensions,
+		"encodingFormat":           "float",
 	}
 	meta := map[string]any{"model": model, "provider": provider}
 	if opts.TotalTokens > 0 {
@@ -195,6 +195,7 @@ func (t *Trace) build(eventType EventType, content, metadata any, opts EventOpti
 		Content:        content,
 		Metadata:       meta,
 		IdempotencyKey: opts.IdempotencyKey,
+		ExternalUserID: opts.ExternalUserID,
 	}
 }
 

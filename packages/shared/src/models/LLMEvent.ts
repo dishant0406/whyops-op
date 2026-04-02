@@ -21,6 +21,7 @@ export interface TraceEvent {
     | 'tool_result'
     | 'error';
   userId: string;
+  externalUserId?: string;
   providerId?: string;
   timestamp: Date;
   
@@ -54,6 +55,7 @@ export class LLMEvent extends Model<TraceEvent, EventCreationAttributes> impleme
     | 'tool_result'
     | 'error';
   declare userId: string;
+  declare externalUserId?: string;
   declare providerId?: string;
   declare timestamp: Date;
   declare content: any;
@@ -111,6 +113,11 @@ LLMEvent.init(
       },
       field: 'user_id',
     },
+    externalUserId: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      field: 'external_user_id',
+    },
     providerId: {
       type: DataTypes.UUID,
       allowNull: true,
@@ -153,6 +160,9 @@ LLMEvent.init(
       },
       {
         fields: ['user_id'],
+      },
+      {
+        fields: ['external_user_id'],
       },
       {
         fields: ['provider_id'],
