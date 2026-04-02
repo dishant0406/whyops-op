@@ -235,7 +235,7 @@ export async function resolveModelPricing(query: string): Promise<ModelPricingLo
       confidence: fallback ? 'medium' : 'low',
       validationSource: 'fallback',
       pricingSource: fallback ? 'fallback' : 'none',
-      pricing: fallback ?? null,
+      pricing: fallback ? fallback as ModelPricing : null,
       suggestions,
       reasoning: fallback ? 'Matched fallback pricing locally because Linkup validation failed.' : 'Could not validate this model name right now.',
     };

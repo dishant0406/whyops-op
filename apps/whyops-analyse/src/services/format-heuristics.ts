@@ -267,17 +267,20 @@ function detectLangChain(obj: unknown): boolean {
 
 function convertLangChainToEvents(obj: unknown): NormalizedEvent[] {
   if (isArr(get(obj, 'runs'))) {
-    return (get(obj, 'runs') as unknown[]).filter(isObj).map((r, i) => ({
-      id: (r.id as string) ?? `s${i + 1}`, stepId: i + 1,
-      eventType: r.run_type === 'llm' ? 'llm_response' : r.run_type === 'tool' ? 'tool_call_request' : 'user_message',
-      timestamp: (r.start_time as string) ?? ts(i),
-      content: r.run_type === 'llm'
-        ? { content: contentToStr(r.outputs ?? r.output ?? '') }
-        : r.run_type === 'tool'
-          ? { name: (r.name as string) ?? (r.serialized?.name as string) ?? 'tool', arguments: r.inputs ?? {} }
-          : contentToStr(r.inputs ?? r.input ?? ''),
-      metadata: { model: r.serialized?.name as string, tool: r.run_type === 'tool' ? ((r.name as string) ?? (r.serialized?.name as string) ?? 'tool') : undefined },
-    }));
+    return (get(obj, 'runs') as unknown[]).filter(isObj).map((r, i) => {
+      const run = r as Record<string, unknown>;
+      return {
+        id: (run.id as string) ?? `s${i + 1}`, stepId: i + 1,
+        eventType: run.run_type === 'llm' ? 'llm_response' : run.run_type === 'tool' ? 'tool_call_request' : 'user_message',
+        timestamp: (run.start_time as string) ?? ts(i),
+        content: run.run_type === 'llm'
+          ? { content: contentToStr(run.outputs ?? run.output ?? '') }
+          : run.run_type === 'tool'
+            ? { name: (run.name as string) ?? ((run.serialized as Record<string, unknown>)?.name as string) ?? 'tool', arguments: run.inputs ?? {} }
+            : contentToStr(run.inputs ?? run.input ?? ''),
+        metadata: { model: (run.serialized as Record<string, unknown>)?.name as string, tool: run.run_type === 'tool' ? ((run.name as string) ?? ((run.serialized as Record<string, unknown>)?.name as string) ?? 'tool') : undefined },
+      };
+    });
   }
   // generations[][{text}]
   return (get(obj, 'generations') as unknown[][]).flat().map((g, i) => ({
