@@ -1,4 +1,6 @@
 import type { WhyOpsTrace } from '@whyops/sdk';
+import type { WhyOpsContext } from './context.js';
+import { withWhyOpsContext } from './context.js';
 
 const LOG = '[whyops]';
 
@@ -94,6 +96,7 @@ export async function captureStep(
   step: Record<string, unknown>,
   provider: string,
   modelId: string,
+  context?: WhyOpsContext,
 ): Promise<void> {
   try {
     const text = step['text'] as string | undefined ?? '';
@@ -114,14 +117,22 @@ export async function captureStep(
 
     // Emit llmThinking if reasoning present
     if (reasoningText) {
-      await trace.llmThinking(reasoningText, { signature: reasoningSignature });
+      await trace.llmThinking(
+        reasoningText,
+        withWhyOpsContext({ signature: reasoningSignature }, context),
+      );
     }
 
-    await trace.llmResponse(modelId, provider, text || null, {
-      usage: mapUsage(usage),
-      finishReason: finishReason ?? undefined,
-      ...(mappedForLLM ? { toolCalls: mappedForLLM } : {}),
-    });
+    await trace.llmResponse(
+      modelId,
+      provider,
+      text || null,
+      withWhyOpsContext({
+        usage: mapUsage(usage),
+        finishReason: finishReason ?? undefined,
+        ...(mappedForLLM ? { toolCalls: mappedForLLM } : {}),
+      }, context),
+    );
 
     // Emit toolCallRequest + toolCallResponse pairs per tool
     for (const tc of toolCalls) {
@@ -133,13 +144,23 @@ export async function captureStep(
       const spanId = crypto.randomUUID();
 
       // Emit request with explicit spanId
-      await trace.toolCallRequest(toolName, [{ name: toolName, arguments: args }], { spanId });
+      await trace.toolCallRequest(
+        toolName,
+        [{ name: toolName, arguments: args }],
+        withWhyOpsContext({ spanId }, context),
+      );
 
       // Find matching result
       const result = toolResults.find((r) => r['toolCallId'] === toolCallId);
       if (result) {
         const output = (result['output'] ?? result['result'] ?? {}) as Record<string, unknown>;
-        await trace.toolCallResponse(toolName, spanId, [{ name: toolName, arguments: args }], output, {});
+        await trace.toolCallResponse(
+          toolName,
+          spanId,
+          [{ name: toolName, arguments: args }],
+          output,
+          withWhyOpsContext({}, context),
+        );
       }
     }
   } catch (err) {

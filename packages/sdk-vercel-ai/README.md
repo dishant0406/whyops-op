@@ -59,6 +59,23 @@ const result = await generateText(withWhyOps({
 console.log(result.text);
 ```
 
+## Optional `whyopsCtx`
+
+Pass `whyopsCtx` as the second argument only when you want to attach request-scoped metadata such as your application's user ID or a caller-supplied trace ID:
+
+```ts
+const whyopsCtx = {
+  externalUserId: session.user.id,
+};
+
+const result = await generateText(withWhyOps({
+  model: openai.chat('gpt-4.1'),
+  prompt: 'Summarize this ticket.',
+}, whyopsCtx));
+```
+
+`whyopsCtx` is optional. If you do not pass it, the wrapper behaves exactly as before.
+
 ## Tool Calls
 
 `withWhyOps()` captures multi-step tool use automatically. On `ai@5`, it also normalizes `maxSteps` into `stopWhen` so tool loops complete correctly.
@@ -95,7 +112,7 @@ import { streamText } from 'ai';
 const result = streamText(withWhyOps({
   model: openai.chat('gpt-4.1'),
   prompt: 'Name three oceans.',
-}));
+}, whyopsCtx));
 
 for await (const chunk of result.textStream) {
   process.stdout.write(chunk);
@@ -112,12 +129,12 @@ import { embed, embedMany } from '@whyops/vercel-ai-sdk';
 const one = await embed({
   model: embeddingModel,
   value: 'hello world',
-});
+}, whyopsCtx);
 
 const many = await embedMany({
   model: embeddingModel,
   values: ['alpha', 'beta'],
-});
+}, whyopsCtx);
 ```
 
 ## Provider Notes
@@ -129,9 +146,14 @@ const many = await embedMany({
 ## API
 
 - `registerWhyOps(whyops: WhyOps): void`
-- `withWhyOps<T extends object>(options: T): T`
-- `embed(options)`
-- `embedMany(options)`
+- `withWhyOps<T extends object>(options: T, whyopsCtx?: WhyOpsContext): T`
+- `embed(options, whyopsCtx?: WhyOpsContext)`
+- `embedMany(options, whyopsCtx?: WhyOpsContext)`
+
+`WhyOpsContext` currently supports:
+
+- `externalUserId?: string`
+- `traceId?: string`
 
 Call `registerWhyOps()` once at startup, then wrap each `generateText()` or `streamText()` call with `withWhyOps()`.
 
