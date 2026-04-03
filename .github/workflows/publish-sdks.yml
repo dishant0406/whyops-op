@@ -82,6 +82,7 @@ jobs:
           PKG_VERSION=$(node -p "require('./package.json').version")
           test "$PKG_VERSION" = "${{ inputs.version }}"
         working-directory: packages/sdk-vercel-ai
+      - run: npm run build --workspace @whyops/sdk
       - run: npm run build
         working-directory: packages/sdk-vercel-ai
       - name: Publish to npm if missing
