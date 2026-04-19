@@ -3,10 +3,14 @@ import AgentAnalysisConfig from './AgentAnalysisConfig';
 import AgentAnalysisFinding from './AgentAnalysisFinding';
 import AgentAnalysisRun from './AgentAnalysisRun';
 import AgentAnalysisSection from './AgentAnalysisSection';
+import AgentKnowledgeProfile from './AgentKnowledgeProfile';
 import AnalysisExperiment from './AnalysisExperiment';
 import ApiKey from './ApiKey';
 import Entity from './Entity';
 import { Environment } from './Environment';
+import EvalCase from './EvalCase';
+import EvalConfig from './EvalConfig';
+import EvalRun from './EvalRun';
 import LlmCost from './LlmCost';
 import LLMEvent from './LLMEvent';
 import { Project } from './Project';
@@ -119,16 +123,38 @@ AgentAnalysisSection.belongsTo(AgentAnalysisRun, { foreignKey: 'runId', as: 'run
 AgentAnalysisRun.hasMany(AgentAnalysisFinding, { foreignKey: 'runId', as: 'findings' });
 AgentAnalysisFinding.belongsTo(AgentAnalysisRun, { foreignKey: 'runId', as: 'run' });
 
+Agent.hasOne(AgentKnowledgeProfile, { foreignKey: 'agentId', as: 'knowledgeProfile' });
+AgentKnowledgeProfile.belongsTo(Agent, { foreignKey: 'agentId', as: 'agent' });
+
+Agent.hasOne(EvalConfig, { foreignKey: 'agentId', as: 'evalConfig' });
+EvalConfig.belongsTo(Agent, { foreignKey: 'agentId', as: 'agent' });
+
+EvalConfig.hasMany(EvalRun, { foreignKey: 'configId', as: 'runs' });
+EvalRun.belongsTo(EvalConfig, { foreignKey: 'configId', as: 'config' });
+
+Agent.hasMany(EvalRun, { foreignKey: 'agentId', as: 'evalRuns' });
+EvalRun.belongsTo(Agent, { foreignKey: 'agentId', as: 'agent' });
+
+EvalRun.hasMany(EvalCase, { foreignKey: 'runId', as: 'cases' });
+EvalCase.belongsTo(EvalRun, { foreignKey: 'runId', as: 'run' });
+
+Agent.hasMany(EvalCase, { foreignKey: 'agentId', as: 'evalCases' });
+EvalCase.belongsTo(Agent, { foreignKey: 'agentId', as: 'agent' });
+
 export {
   Agent,
   AgentAnalysisConfig,
   AgentAnalysisFinding,
   AgentAnalysisRun,
   AgentAnalysisSection,
+  AgentKnowledgeProfile,
   AnalysisExperiment,
   ApiKey,
   Entity,
   Environment,
+  EvalCase,
+  EvalConfig,
+  EvalRun,
   LlmCost,
   LLMEvent,
   Project,
@@ -147,6 +173,7 @@ export const models = {
   AgentAnalysisFinding,
   AgentAnalysisRun,
   AgentAnalysisSection,
+  AgentKnowledgeProfile,
   AnalysisExperiment,
   Provider,
   ApiKey,
@@ -156,6 +183,9 @@ export const models = {
   TraceAnalysis,
   TraceAnalysisFinding,
   Entity,
+  EvalCase,
+  EvalConfig,
+  EvalRun,
   LlmCost,
   Project,
   Environment,
